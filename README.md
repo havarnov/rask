@@ -18,7 +18,7 @@ fn index(req: &Request, res: &mut Response) {
 
 fn create(req: &Request, res: &mut Response) {
 	// do something with req.body
-    res.body = "something created";
+    res.body = "something created".into();
     res.status = StatusCode::Created;
 }
 
