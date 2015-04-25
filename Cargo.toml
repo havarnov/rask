@@ -1,0 +1,14 @@
+[package]
+
+name = "rask"
+version = "0.0.1"
+description = "A simple web framework for Rust."
+license = "MIT"
+authors = ["Håvar Nøvik <havar.novik@gmail.com>"]
+
+[dependencies]
+regex = "*"
+hyper = "*"
+url = "*"
+multimap = "*"
+
