@@ -91,7 +91,8 @@ impl<F> Handler for F where F: Fn(&Request, &mut Response), F: Sync + Send {
 
 /// The Rask web application.
 pub struct Rask {
-    routes: Vec<Route>
+    routes: Vec<Route>,
+    not_found_handler: Box<Handler>,
 }
 
 impl Rask {
@@ -105,7 +106,9 @@ impl Rask {
     /// let app = Rask::new();
     /// ```
     pub fn new() -> Rask {
-        Rask { routes: Vec::new() }
+        Rask {
+            routes: Vec::new(),
+            not_found_handler: Box::new(default_404_handler) }
     }
 
     /// Starts the web application. Blocks and dispatches new incoming requests.
@@ -196,6 +199,14 @@ impl Rask {
         self.routes.push(route);
     }
 
+    /// Register a 404 handler. This handler will be called if an incoming request
+    /// doesn't match any of the registered routes.
+    ///
+    /// If no 404 handler is registered a default handler will be called instead.
+    pub fn register_404_handler<H: 'static + Handler>(&mut self, handler: H) {
+        self.not_found_handler = Box::new(handler);
+    }
+
     fn find_route(&self, uri: &str, method: &Method) -> Option<&Route> {
         for route in self.routes.iter() {
             if route.re.is_match(uri) && (route.methods.is_empty() || route.methods.contains(method)) {
@@ -231,7 +242,10 @@ impl HttpHandler for Rask {
                 let request = Request::new(req, captures, query_string);
                 (*router.handler).handle(&request, &mut response);
             },
-            None => default_404_handler(&Request::new(req, None, None), &mut response)
+            None => {
+                let req = &Request::new(req, None, None);
+                self.not_found_handler.handle(req, &mut response);
+            }
         }
 
         let mut res = res;
