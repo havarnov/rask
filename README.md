@@ -22,11 +22,17 @@ fn create(req: &Request, res: &mut Response) {
     res.status = StatusCode::Created;
 }
 
+fn profile(req: &Request, res: &mut Response) {
+    let name = req.vars("name").unwrap();
+    res.body = format!("Hello, {0}", name);
+}
+
 fn main() {
     let mut app = Rask::new();
 
     app.register("/", index);
     app.register_with_methods("/create", &[Method::Post], create);
+    app.register_with_methods("/profile/{name}", &[Method::Get], profile);
 
     app.run("0.0.0.0", 8080);
 }
