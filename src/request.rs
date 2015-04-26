@@ -10,6 +10,8 @@ use hyper::uri::RequestUri;
 
 use multimap::MultiMap;
 
+/// The struct that holds information about the incoming Request. The handlers will borrow this
+/// struct.
 pub struct Request {
     pub method: Method,
     pub headers: Headers,
@@ -20,6 +22,7 @@ pub struct Request {
 }
 
 impl Request {
+    #[doc(hidden)]
     pub fn new(req: HttpRequest, captures: Option<Captures>, query_string: Option<String>) -> Request {
         let mut req = req;
         let mut body = String::new();

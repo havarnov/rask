@@ -1,6 +1,6 @@
 # Rask
 
-A simple web framework for Rust. Based on [hyper](https://github.com/hyperium/hyper).
+A micro web framework for Rust. Based on [hyper](https://github.com/hyperium/hyper).
 
 This project is very much a work in progress.
 
@@ -17,20 +17,20 @@ fn index(req: &Request, res: &mut Response) {
 }
 
 fn create(req: &Request, res: &mut Response) {
-	// do something with req.body
+    // do something with req.body
     res.body = "something created".into();
     res.status = StatusCode::Created;
 }
 
 fn profile(req: &Request, res: &mut Response) {
-    let name = req.vars("name").unwrap();
+    let name = req.vars.get("name").unwrap();
     res.body = format!("Hello, {0}", name);
 }
 
 fn main() {
     let mut app = Rask::new();
 
-    app.register("/", index);
+    app.register("/", index); // all methods
     app.register_with_methods("/create", &[Method::Post], create);
     app.register_with_methods("/profile/{name}", &[Method::Get], profile);
 

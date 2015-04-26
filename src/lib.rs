@@ -1,3 +1,36 @@
+//! A micro web framework.
+//!
+//! ```no_run
+//! use rask::{Rask, Request, Response, StatusCode, Method};
+//!
+//! fn index(req: &Request, res: &mut Response) {
+//!     res.body = "Hello world!".into();
+//!     // defaults to Statuscode::Ok
+//! }
+//!
+//! fn create(req: &Request, res: &mut Response) {
+//!     // do something with req.body
+//!     res.body = "something created".into();
+//!     res.status = StatusCode::Created;
+//! }
+//!
+//! fn profile(req: &Request, res: &mut Response) {
+//!     let name = req.vars.get("name").unwrap();
+//!     res.body = format!("Hello, {0}", name);
+//! }
+//!
+//! fn main() {
+//!
+//!     let mut app = Rask::new();
+//!
+//!     app.register("/", index); // all methods
+//!     app.register_with_methods("/create", &[Method::Post], create);
+//!     app.register_with_methods("/profile/{name}", &[Method::Get], profile);
+//!
+//!     app.run("0.0.0.0", 8080);
+//! }
+//! ```
+
 extern crate regex;
 extern crate hyper;
 extern crate url;
@@ -26,6 +59,26 @@ mod routing;
 mod response;
 mod request;
 
+/// Trait that all handlers must implement.
+///
+/// Default implementation for `Fn(&Request, &mut Response)`.
+///
+/// # Examples
+///
+/// ```rust
+/// use rask::{Handler, Request, Response};
+///
+/// struct FooHandler {
+///     something: usize,
+/// }
+///
+/// impl Handler for FooHandler {
+///     fn handle(&self, req: &Request, res: &mut Response) {
+///         // handle request
+///     }
+/// }
+///
+/// ```
 pub trait Handler: Sync + Send {
     fn handle(&self, &Request, &mut Response);
 }
@@ -36,15 +89,40 @@ impl<F> Handler for F where F: Fn(&Request, &mut Response), F: Sync + Send {
     }
 }
 
+/// The Rask web application.
 pub struct Rask {
     routes: Vec<Route>
 }
 
 impl Rask {
+    /// Creates a new Rask web application.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rask::Rask;
+    ///
+    /// let app = Rask::new();
+    /// ```
     pub fn new() -> Rask {
         Rask { routes: Vec::new() }
     }
 
+    /// Starts the web application. Blocks and dispatches new incoming requests.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rask::Rask;
+    ///
+    /// let app = Rask::new();
+    /// app.run("127.0.0.1", 8080);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This method panics if `host` can´t be parsed to a Ipv4Addr or that it fails to start
+    /// the web application for the given host and port.
     pub fn run(self, host: &str, port: u16) {
         // TODO: What about Ipv6Addr?
         println!("Starting....");
@@ -56,11 +134,58 @@ impl Rask {
         Server::http(self).listen_threads(SocketAddrV4::new(ip, port), 2).unwrap();
     }
 
+    /// Register a handler for a given route. Rask will dispatch request that matches the
+    /// route to the handler for all http methods.
+    ///
+    /// `route` must be on the following syntax:
+    ///
+    /// * "/" -> requests matching the "/" literal.
+    /// * "/profile" -> requests matching the "/profile" literal.
+    /// * "/{name}" -> requests matching any requests with "/" + a word.
+    /// The name variable will be
+    /// accesible from `Request.vars`.
+    ///
+    /// Rask will search for a matching handler in the order they are registered and
+    /// returns a 404 error if non of the handlers match.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rask::{Rask, Request, Response};
+    ///
+    /// fn index(_: &Request, _: &mut Response) {
+    /// }
+    ///
+    /// let mut app = Rask::new();
+    /// app.register("/", index);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given route can't be compiled to a valid regex.
     pub fn register<H: 'static + Handler>(&mut self, route: &str, handler: H) {
         let route = Route::new(route, handler);
         self.routes.push(route);
     }
 
+    /// Same as `register`, but also specifies which http methods the handler will receive.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rask::{Rask, Request, Response};
+    /// use rask::Method::*;
+    ///
+    /// fn only_post_and_put(_: &Request, _: &mut Response) {
+    /// }
+    ///
+    /// let mut app = Rask::new();
+    /// app.register_with_methods("/", &[Post, Put], only_post_and_put);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given route can't be compiled to a valid regex.
     pub fn register_with_methods<H: 'static + Handler>(
         &mut self,
         route: &str,
