@@ -149,7 +149,7 @@ impl Rask {
     /// accesible from `Request.vars`.
     ///
     /// Rask will search for a matching handler in the order they are registered and
-    /// returns a 404 error if non of the handlers match.
+    /// either returns a 405 (Method not allowed) or a 404 (Not found) error.
     ///
     /// # Examples
     ///
@@ -207,14 +207,27 @@ impl Rask {
         self.not_found_handler = Box::new(handler);
     }
 
-    fn find_route(&self, uri: &str, method: &Method) -> Option<&Route> {
+    fn find_route(&self, uri: &str, method: &Method) -> RouteResult {
+        let mut is_match = false;
         for route in self.routes.iter() {
-            if route.re.is_match(uri) && (route.methods.is_empty() || route.methods.contains(method)) {
-                return Some(&route);
+            if route.re.is_match(uri) {
+                is_match = true;
+                if route.methods.is_empty() || route.methods.contains(method) {
+                    return RouteResult::Found(&route);
+                }
             }
         }
-        None
+        match is_match {
+            true => RouteResult::NotAllowedMethod,
+            false => RouteResult::NotFound
+        }
     }
+}
+
+enum RouteResult<'a> {
+    Found(&'a Route),
+    NotAllowedMethod,
+    NotFound,
 }
 
 impl HttpHandler for Rask {
@@ -237,12 +250,16 @@ impl HttpHandler for Rask {
         let mut response = Response { body: "".into(), status: StatusCode::Ok };
 
         match self.find_route(&url, &req.method) {
-            Some(router) => {
+            RouteResult::Found(router) => {
                 let captures = router.re.captures(&url);
                 let request = Request::new(req, captures, query_string);
                 (*router.handler).handle(&request, &mut response);
             },
-            None => {
+            RouteResult::NotAllowedMethod => {
+                response.body = "405 Method Not Allowed".into();
+                response.status = StatusCode::MethodNotAllowed;
+            }
+            RouteResult::NotFound => {
                 let req = &Request::new(req, None, None);
                 self.not_found_handler.handle(req, &mut response);
             }
