@@ -257,7 +257,7 @@ impl HttpHandler for Rask {
 }
 
 fn default_404_handler(_: &Request, res: &mut Response) {
-    res.body = format!("Page not found");
+    res.body = "404 Not Found".into();
     res.status = StatusCode::NotFound;
 }
 
