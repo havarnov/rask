@@ -208,19 +208,17 @@ impl Rask {
     }
 
     fn find_route(&self, uri: &str, method: &Method) -> RouteResult {
-        let mut is_match = false;
         for route in self.routes.iter() {
             if route.re.is_match(uri) {
-                is_match = true;
                 if route.methods.is_empty() || route.methods.contains(method) {
                     return RouteResult::Found(&route);
                 }
+                else {
+                    return RouteResult::NotAllowedMethod;
+                }
             }
         }
-        match is_match {
-            true => RouteResult::NotAllowedMethod,
-            false => RouteResult::NotFound
-        }
+        RouteResult::NotFound
     }
 }
 
