@@ -31,6 +31,9 @@
 //! }
 //! ```
 
+#[macro_use]
+extern crate log;
+
 extern crate regex;
 extern crate hyper;
 extern crate url;
@@ -128,11 +131,11 @@ impl Rask {
     /// the web application for the given host and port.
     pub fn run(self, host: &str, port: u16) {
         // TODO: What about Ipv6Addr?
-        println!("Starting....");
         let ip = match Ipv4Addr::from_str(host) {
             Ok(addr) => addr,
             Err(e) => panic!(e)
         };
+        info!("Running on {:?}:{:?}", host, port);
         // FIXME: hard code number of threads, no good.
         Server::http(self).listen_threads(SocketAddrV4::new(ip, port), 2).unwrap();
     }
@@ -238,20 +241,20 @@ impl HttpHandler for Rask {
                         (format!("/{0}", path.connect("/")), query_string)
                     },
                     Err(_) => {
-                        println!("Couldn't parse path: {:?}.", p);
+                        error!("Couldn't parse path: {:?}.", p);
                         write_500_error(res);
                         return;
                     }
                 }
             },
             uri => {
-                println!("Not supported 'RequestUri': {:?}.", uri);
+                error!("Not supported 'RequestUri': {:?}.", uri);
                 write_500_error(res);
                 return;
             }
         };
 
-        println!("{:?} {:?}", req.method, url);
+        info!("{:?} {:?}", req.method, url);
 
         let mut response = Response { body: "".into(), status: StatusCode::Ok };
 

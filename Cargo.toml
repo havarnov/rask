@@ -11,4 +11,5 @@ regex = "*"
 hyper = "*"
 url = "*"
 multimap = "*"
+log = "*"
 
