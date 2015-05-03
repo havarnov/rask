@@ -237,10 +237,18 @@ impl HttpHandler for Rask {
                     Ok((path, query_string, _)) => {
                         (format!("/{0}", path.connect("/")), query_string)
                     },
-                    Err(_) => panic!("url parse error")
+                    Err(_) => {
+                        println!("Couldn't parse path: {:?}.", p);
+                        write_500_error(res);
+                        return;
+                    }
                 }
             },
-            _ => panic!("Woot..!")
+            uri => {
+                println!("Not supported 'RequestUri': {:?}.", uri);
+                write_500_error(res);
+                return;
+            }
         };
 
         println!("{:?} {:?}", req.method, url);
@@ -263,12 +271,23 @@ impl HttpHandler for Rask {
             }
         }
 
-        let mut res = res;
-        *res.status_mut() = response.status;
-        let mut result = res.start().unwrap();
-        result.write_all((&response.body).as_bytes()).unwrap();
-        result.end().unwrap();
+        write_response(res, &response);
     }
+}
+
+fn write_500_error(hyper_res: HttpResponse<Fresh>) {
+    let res = Response {
+        body: "500 Internal server error".into(),
+        status: StatusCode::InternalServerError };
+    write_response(hyper_res, &res);
+}
+
+fn write_response(hyper_res: HttpResponse<Fresh>, rask_res: &Response) {
+    let mut hyper_res = hyper_res;
+    *hyper_res.status_mut() = rask_res.status;
+    let mut result = hyper_res.start().unwrap();
+    result.write_all((rask_res.body).as_bytes()).unwrap();
+    result.end().unwrap();
 }
 
 fn default_404_handler(_: &Request, res: &mut Response) {
