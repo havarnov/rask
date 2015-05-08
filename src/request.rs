@@ -19,6 +19,7 @@ pub struct Request {
     pub gets: MultiMap<String, String>,
     pub vars: HashMap<String, String>,
     pub body: String,
+    pub form: MultiMap<String, String>,
 }
 
 impl Request {
@@ -49,6 +50,7 @@ impl Request {
                 },
                 None => HashMap::new()
             },
+            form: parse_query_string(&body),
             body: body,
         }
     }
