@@ -37,3 +37,11 @@ fn main() {
     app.run("0.0.0.0", 8080);
 }
 ````
+
+## Planned features
+
+* serve static
+* redirect to handler/url
+* cookies (own crate?)
+* blueprints (ala flask’s blueprints)
+
