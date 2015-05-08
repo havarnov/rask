@@ -36,20 +36,14 @@ impl Request {
             method: req.method,
             headers: req.headers,
             uri: req.uri,
-            gets: match query_string {
-                Some(query_string) => parse_query_string(&query_string),
-                None => MultiMap::new()
-            },
-            vars: match captures {
-                Some(c) => {
-                    let mut v = HashMap::new();
-                    for (key, value) in c.iter_named() {
-                        v.insert(key.to_string(), value.unwrap().to_string());
-                    }
-                    v
-                },
-                None => HashMap::new()
-            },
+            gets: query_string
+                .map(|s| parse_query_string(&s))
+                .unwrap_or(MultiMap::new()),
+            vars: captures
+                .map(|c| c
+                     .iter_named()
+                     .map(|(k,v)| (k.to_string(), v.unwrap().to_string())).collect())
+                .unwrap_or(HashMap::new()),
             form: parse_query_string(&body),
             body: body,
         }
