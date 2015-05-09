@@ -42,6 +42,7 @@ fn main() {
 
 * serve static
 * redirect to handler/url
+* session
 * cookies (own crate?)
 * blueprints (ala flask’s blueprints)
 
