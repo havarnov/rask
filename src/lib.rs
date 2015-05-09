@@ -44,6 +44,8 @@ use std::io::Write;
 use std::str::FromStr;
 
 use hyper::Server;
+use hyper::header;
+use hyper::header::Headers;
 use hyper::uri::RequestUri;
 use hyper::server::response::Response as HttpResponse;
 use hyper::server::request::Request as HttpRequest;
@@ -57,6 +59,7 @@ use url::UrlParser;
 use routing::Route;
 pub use request::Request;
 pub use response::Response;
+pub use response::redirect;
 
 mod routing;
 mod response;
@@ -256,7 +259,7 @@ impl HttpHandler for Rask {
 
         info!("{:?} {:?}", req.method, url);
 
-        let mut response = Response { body: "".into(), status: StatusCode::Ok };
+        let mut response = Response::new();
 
         match self.find_route(&url, &req.method) {
             RouteResult::Found(router) => {
@@ -274,22 +277,38 @@ impl HttpHandler for Rask {
             }
         }
 
-        write_response(res, &response);
+        write_response(res, response);
     }
 }
 
 fn write_500_error(hyper_res: HttpResponse<Fresh>) {
     let res = Response {
         body: "500 Internal server error".into(),
-        status: StatusCode::InternalServerError };
-    write_response(hyper_res, &res);
+        status: StatusCode::InternalServerError,
+        headers: Headers::new()};
+    write_response(hyper_res, res);
 }
 
-fn write_response(hyper_res: HttpResponse<Fresh>, rask_res: &Response) {
+const SERVER_NAME: &'static str = "Rask/0.0.1 Rust/1.0-beta2";
+
+fn write_response(hyper_res: HttpResponse<Fresh>, rask_res: Response) {
+    let mut rask_res = rask_res;
     let mut hyper_res = hyper_res;
+
+    let bytes = rask_res.body.as_bytes();
+    let bytes_len = bytes.len();
+
+    rask_res.headers.set(header::Server(SERVER_NAME.into()));
+    rask_res.headers.set(header::ContentLength(bytes_len as u64));
+
     *hyper_res.status_mut() = rask_res.status;
+    *hyper_res.headers_mut() = rask_res.headers;
+
     let mut result = hyper_res.start().unwrap();
-    result.write_all((rask_res.body).as_bytes()).unwrap();
+    if bytes_len > 0 {
+        result.write_all(bytes).unwrap();
+    }
+
     result.end().unwrap();
 }
 
