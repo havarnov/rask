@@ -16,9 +16,13 @@ impl Response {
             headers: Headers::new(),
         }
     }
+
+    pub fn redirect(&mut self, location: &str) {
+        self.status = StatusCode::Found;
+        // TODO: what's correct behaviour if 'Location' is already set.
+        if !self.headers.has::<Location>() {
+            self.headers.set(Location(location.into()));
+        }
+    }
 }
 
-pub fn redirect(res: &mut Response, location: &str) {
-    res.status = StatusCode::Found;
-    res.headers.set(Location(location.into()));
-}

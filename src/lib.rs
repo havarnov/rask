@@ -59,7 +59,6 @@ use url::UrlParser;
 use routing::Route;
 pub use request::Request;
 pub use response::Response;
-pub use response::redirect;
 
 mod routing;
 mod response;
