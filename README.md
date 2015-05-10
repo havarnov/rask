@@ -38,11 +38,50 @@ fn main() {
 }
 ````
 
+````rust
+fn index(req: &Request, res: &mut Response) {
+    res.body = match req.get_session("username") {
+        Some(username) => format!("You're logged in as '{0}'.", username),
+        None => format!("You're not logged in.")
+    };
+}
+
+fn login(req: &Request, res: &mut Response) {
+    if req.method == Method::Post {
+        res.set_session("username", &req.form["username"]);
+        res.redirect("/");
+    }
+    else {
+        res.body = "
+            <form action=\"\" method=\"POST\">
+                <p><input type=\"text\" name=\"username\" />
+                <p><input type=\"submit\" value=\"LOGIN\" />
+            </form>
+            ".into();
+    }
+}
+
+fn logout(req: &Request, res: &mut Response) {
+    res.pop_session("username");
+    res.redirect("/");
+}
+
+fn main() {
+    let mut app = Rask::new();
+
+    app.register("/", index);
+    app.register("/login", login);
+    app.register("/logout", logout);
+
+    app.run("0.0.0.0", 8080);
+}
+````
+
 ## Planned features
 
 * serve static
 * redirect to handler/url
 * session
-* cookies (own crate?)
+* cookies
 * blueprints (ala flask’s blueprints)
 

@@ -38,6 +38,7 @@ extern crate regex;
 extern crate hyper;
 extern crate url;
 extern crate multimap;
+extern crate cookie;
 
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::io::Write;
@@ -45,7 +46,6 @@ use std::str::FromStr;
 
 use hyper::Server;
 use hyper::header;
-use hyper::header::Headers;
 use hyper::uri::RequestUri;
 use hyper::server::response::Response as HttpResponse;
 use hyper::server::request::Request as HttpRequest;
@@ -63,6 +63,8 @@ pub use response::Response;
 mod routing;
 mod response;
 mod request;
+
+const SECRET: &'static str = "SUPER SECRET STRING";
 
 /// Trait that all handlers must implement.
 ///
@@ -258,12 +260,12 @@ impl HttpHandler for Rask {
 
         info!("{:?} {:?}", req.method, url);
 
-        let mut response = Response::new();
+        let mut response = Response::new(SECRET.as_bytes());
 
         match self.find_route(&url, &req.method) {
             RouteResult::Found(router) => {
                 let captures = router.re.captures(&url);
-                let request = Request::new(req, captures, query_string);
+                let request = Request::new(req, captures, query_string, SECRET.as_bytes());
                 (*router.handler).handle(&request, &mut response);
             },
             RouteResult::NotAllowedMethod => {
@@ -271,7 +273,7 @@ impl HttpHandler for Rask {
                 response.status = StatusCode::MethodNotAllowed;
             }
             RouteResult::NotFound => {
-                let req = &Request::new(req, None, None);
+                let req = &Request::new(req, None, None, SECRET.as_bytes());
                 self.not_found_handler.handle(req, &mut response);
             }
         }
@@ -281,10 +283,9 @@ impl HttpHandler for Rask {
 }
 
 fn write_500_error(hyper_res: HttpResponse<Fresh>) {
-    let res = Response {
-        body: "500 Internal server error".into(),
-        status: StatusCode::InternalServerError,
-        headers: Headers::new()};
+    let mut res = Response::no_cookies();
+    res.body = "500 Internal server error".into();
+    res.status = StatusCode::InternalServerError;
     write_response(hyper_res, res);
 }
 
@@ -296,6 +297,11 @@ fn write_response(hyper_res: HttpResponse<Fresh>, rask_res: Response) {
 
     let bytes = rask_res.body.as_bytes();
     let bytes_len = bytes.len();
+
+    if let Some(cookie_jar) = rask_res.cookie_jar {
+        let set_cookie_header = header::SetCookie::from_cookie_jar(&cookie_jar);
+        rask_res.headers.set(set_cookie_header);
+    }
 
     rask_res.headers.set(header::Server(SERVER_NAME.into()));
     rask_res.headers.set(header::ContentLength(bytes_len as u64));

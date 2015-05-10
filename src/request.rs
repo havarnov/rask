@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 use std::io::Read;
 
+use cookie::CookieJar;
+
 use regex::Captures;
 
+use hyper::header;
 use hyper::header::Headers;
 use hyper::method::Method;
 use hyper::server::request::Request as HttpRequest;
@@ -12,7 +15,7 @@ use multimap::MultiMap;
 
 /// The struct that holds information about the incoming Request. The handlers will borrow this
 /// struct.
-pub struct Request {
+pub struct Request<'a> {
     pub method: Method,
     pub headers: Headers,
     pub uri: RequestUri,
@@ -20,13 +23,15 @@ pub struct Request {
     pub vars: HashMap<String, String>,
     pub body: String,
     pub form: MultiMap<String, String>,
+    cookie_jar: Option<CookieJar<'a>>
 }
 
-impl Request {
+impl<'a> Request<'a> {
     #[doc(hidden)]
-    pub fn new(req: HttpRequest, captures: Option<Captures>, query_string: Option<String>) -> Request {
+    pub fn new(req: HttpRequest, captures: Option<Captures>, query_string: Option<String>, secret: &[u8]) -> Request<'a> {
         let mut req = req;
         let mut body = String::new();
+        info!("{:?}", req.headers);
         match req.read_to_string(&mut body) {
             Ok(_) => (),
             Err(_) => body = String::new()
@@ -34,7 +39,6 @@ impl Request {
 
         Request {
             method: req.method,
-            headers: req.headers,
             uri: req.uri,
             gets: query_string
                 .map(|s| parse_query_string(&s))
@@ -46,6 +50,17 @@ impl Request {
                 .unwrap_or(HashMap::new()),
             form: parse_query_string(&body),
             body: body,
+            cookie_jar: req.headers.get::<header::Cookie>().map(|c| c.to_cookie_jar(secret)),
+            headers: req.headers,
+        }
+    }
+
+    pub fn get_session(&self, key: &str) -> Option<String> {
+        if let Some(ref jar) = self.cookie_jar {
+            jar.encrypted().find(key).and_then(|c| Some(c.value))
+        }
+        else {
+            None
         }
     }
 }

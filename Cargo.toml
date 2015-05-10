@@ -12,4 +12,5 @@ hyper = "*"
 url = "*"
 multimap = "*"
 log = "*"
+cookie = "*"
 
