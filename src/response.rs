@@ -1,14 +1,19 @@
-use cookie::{CookieJar,Cookie};
+use std::rc::Rc;
+use std::cell::RefCell;
+
+use cookie::CookieJar;
 
 use hyper::header::{Headers,Location};
 use hyper::status::StatusCode;
+
+use session::Session;
 
 /// The struct that holds information about the response.
 pub struct Response<'a> {
     pub body: String,
     pub status: StatusCode,
     pub headers: Headers,
-    pub cookie_jar: Option<CookieJar<'a>>,
+    pub session: Session<'a>,
 }
 
 impl<'a> Response<'a> {
@@ -17,7 +22,7 @@ impl<'a> Response<'a> {
             body: "".into(),
             status: StatusCode::Ok,
             headers: Headers::new(),
-            cookie_jar: Some(CookieJar::new(secret)),
+            session: Session::new(Rc::new(RefCell::new(Some(CookieJar::new(secret))))),
         }
     }
 
@@ -26,7 +31,7 @@ impl<'a> Response<'a> {
             body: "".into(),
             status: StatusCode::Ok,
             headers: Headers::new(),
-            cookie_jar: None,
+            session: Session::new(Rc::new(RefCell::new(None))),
         }
     }
 
@@ -35,26 +40,6 @@ impl<'a> Response<'a> {
         // TODO: what's correct behaviour if 'Location' is already set.
         if !self.headers.has::<Location>() {
             self.headers.set(Location(location.into()));
-        }
-    }
-
-    pub fn set_cookie(&mut self, key: &str, value: &str) {
-        match self.cookie_jar {
-            Some(ref mut cookie_jar) => cookie_jar.add(Cookie::new(key.into(), value.into())),
-            None => panic!("trying to set a cookie on a non coookie Response")
-        };
-    }
-
-    pub fn set_session(&mut self, key: &str, value: &str) {
-        match self.cookie_jar {
-            Some(ref mut cookie_jar) => cookie_jar.encrypted().add(Cookie::new(key.into(), value.into())),
-            None => panic!("trying to set a session on a non coookie Response")
-        }
-    }
-
-    pub fn pop_session(&self, key: &str) {
-        if let Some(ref jar) = self.cookie_jar {
-            jar.encrypted().remove(key);
         }
     }
 }

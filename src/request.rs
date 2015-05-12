@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::io::Read;
+use std::rc::Rc;
+use std::cell::RefCell;
 
-use cookie::CookieJar;
+use cookie::Cookie;
 
 use regex::Captures;
 
@@ -13,6 +15,9 @@ use hyper::uri::RequestUri;
 
 use multimap::MultiMap;
 
+use session::Session;
+use cookies::Cookies;
+
 /// The struct that holds information about the incoming Request. The handlers will borrow this
 /// struct.
 pub struct Request<'a> {
@@ -23,7 +28,8 @@ pub struct Request<'a> {
     pub vars: HashMap<String, String>,
     pub body: String,
     pub form: MultiMap<String, String>,
-    cookie_jar: Option<CookieJar<'a>>
+    pub session: Session<'a>,
+    pub cookies: Cookies<'a>,
 }
 
 impl<'a> Request<'a> {
@@ -36,7 +42,8 @@ impl<'a> Request<'a> {
             Ok(_) => (),
             Err(_) => body = String::new()
         }
-
+        let session_jar = Rc::new(RefCell::new(req.headers.get::<header::Cookie>().map(|c| c.to_cookie_jar(secret))));
+        let cookie_jar = session_jar.clone();
         Request {
             method: req.method,
             uri: req.uri,
@@ -50,17 +57,9 @@ impl<'a> Request<'a> {
                 .unwrap_or(HashMap::new()),
             form: parse_query_string(&body),
             body: body,
-            cookie_jar: req.headers.get::<header::Cookie>().map(|c| c.to_cookie_jar(secret)),
+            session: Session::new(session_jar),
+            cookies: Cookies::new(cookie_jar),
             headers: req.headers,
-        }
-    }
-
-    pub fn get_session(&self, key: &str) -> Option<String> {
-        if let Some(ref jar) = self.cookie_jar {
-            jar.encrypted().find(key).and_then(|c| Some(c.value))
-        }
-        else {
-            None
         }
     }
 }

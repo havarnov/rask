@@ -60,9 +60,11 @@ use routing::Route;
 pub use request::Request;
 pub use response::Response;
 
-mod routing;
-mod response;
-mod request;
+pub mod routing;
+pub mod response;
+pub mod request;
+pub mod session;
+pub mod cookies;
 
 const SECRET: &'static str = "SUPER SECRET STRING";
 
@@ -298,7 +300,7 @@ fn write_response(hyper_res: HttpResponse<Fresh>, rask_res: Response) {
     let bytes = rask_res.body.as_bytes();
     let bytes_len = bytes.len();
 
-    if let Some(cookie_jar) = rask_res.cookie_jar {
+    if let Some(ref cookie_jar) = *rask_res.session.cookie_jar.borrow() {
         let set_cookie_header = header::SetCookie::from_cookie_jar(&cookie_jar);
         rask_res.headers.set(set_cookie_header);
     }
