@@ -40,7 +40,7 @@ fn main() {
 
 ````rust
 fn index(req: &Request, res: &mut Response) {
-    res.body = match req.get_session("username") {
+    res.body = match req.session.get("username") {
         Some(username) => format!("You're logged in as '{0}'.", username),
         None => format!("You're not logged in.")
     };
@@ -48,7 +48,7 @@ fn index(req: &Request, res: &mut Response) {
 
 fn login(req: &Request, res: &mut Response) {
     if req.method == Method::Post {
-        res.set_session("username", &req.form["username"]);
+        res.session.set("username", &req.form["username"]);
         res.redirect("/");
     }
     else {
@@ -62,7 +62,7 @@ fn login(req: &Request, res: &mut Response) {
 }
 
 fn logout(req: &Request, res: &mut Response) {
-    res.pop_session("username");
+    res.session.pop("username");
     res.redirect("/");
 }
 
