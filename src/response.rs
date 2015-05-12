@@ -7,6 +7,7 @@ use hyper::header::{Headers,Location};
 use hyper::status::StatusCode;
 
 use session::Session;
+use cookies::Cookies;
 
 /// The struct that holds information about the response.
 pub struct Response<'a> {
@@ -14,24 +15,31 @@ pub struct Response<'a> {
     pub status: StatusCode,
     pub headers: Headers,
     pub session: Session<'a>,
+    pub cookies: Cookies<'a>,
 }
 
 impl<'a> Response<'a> {
     pub fn new(secret: &[u8]) -> Response {
+        let session_jar = Rc::new(RefCell::new(Some(CookieJar::new(secret))));
+        let cookies_jar = session_jar.clone();
         Response {
             body: "".into(),
             status: StatusCode::Ok,
             headers: Headers::new(),
-            session: Session::new(Rc::new(RefCell::new(Some(CookieJar::new(secret))))),
+            session: Session::new(session_jar),
+            cookies: Cookies::new(cookies_jar),
         }
     }
 
     pub fn no_cookies() -> Response<'a> {
+        let empty_jar = Rc::new(RefCell::new(None));
+        let empty_jar2 = empty_jar.clone();
         Response {
             body: "".into(),
             status: StatusCode::Ok,
             headers: Headers::new(),
-            session: Session::new(Rc::new(RefCell::new(None))),
+            session: Session::new(empty_jar),
+            cookies: Cookies::new(empty_jar2),
         }
     }
 
