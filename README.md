@@ -39,6 +39,10 @@ fn main() {
 ````
 
 ````rust
+extern crate rask;
+
+use rask::{Rask, Request, Response, Method};
+
 fn index(req: &Request, res: &mut Response) {
     res.body = match req.session.get("username") {
         Some(username) => format!("You're logged in as '{0}'.", username),
