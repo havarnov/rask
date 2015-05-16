@@ -34,6 +34,8 @@ fn main() {
     app.register_with_methods("/create", &[Method::Post], create);
     app.register_with_methods("/profile/{name}", &[Method::Get], profile);
 
+    app.serve_static("static");
+
     app.run("0.0.0.0", 8080);
 }
 ````

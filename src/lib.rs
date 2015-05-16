@@ -42,7 +42,10 @@ extern crate cookie;
 
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::io::Write;
+use std::io::Read;
 use std::str::FromStr;
+use std::fs::File;
+use std::path::PathBuf;
 
 use hyper::Server;
 use hyper::header;
@@ -59,12 +62,14 @@ use url::UrlParser;
 use routing::Route;
 use request::Request;
 use response::Response;
+use servestatic::ServeStatic;
 
 pub mod routing;
 pub mod response;
 pub mod request;
 pub mod session;
 pub mod cookies;
+mod servestatic;
 
 const SECRET: &'static str = "SUPER SECRET STRING";
 
@@ -102,6 +107,7 @@ impl<F> Handler for F where F: Fn(&Request, &mut Response), F: Sync + Send {
 pub struct Rask {
     routes: Vec<Route>,
     not_found_handler: Box<Handler>,
+    serve_static: Option<ServeStatic>,
 }
 
 impl Rask {
@@ -117,7 +123,8 @@ impl Rask {
     pub fn new() -> Rask {
         Rask {
             routes: Vec::new(),
-            not_found_handler: Box::new(default_404_handler) }
+            not_found_handler: Box::new(default_404_handler),
+            serve_static: None }
     }
 
     /// Starts the web application. Blocks and dispatches new incoming requests.
@@ -216,6 +223,12 @@ impl Rask {
         self.not_found_handler = Box::new(handler);
     }
 
+    pub fn serve_static(&mut self, path: &str) {
+        self.serve_static = Some(ServeStatic {
+            root: PathBuf::from(path)
+        });
+    }
+
     fn find_route(&self, uri: &str, method: &Method) -> RouteResult {
         for route in self.routes.iter() {
             if route.re.is_match(uri) {
@@ -227,12 +240,23 @@ impl Rask {
                 }
             }
         }
+
+        // FIXME: only serve to Get requests.
+        match self.serve_static {
+            Some(ref serve_static) => match serve_static.find(uri) {
+                Some(file) => return RouteResult::Static(file),
+                None => (),
+            },
+            None => ()
+        };
+
         RouteResult::NotFound
     }
 }
 
 enum RouteResult<'a> {
     Found(&'a Route),
+    Static(File),
     NotAllowedMethod,
     NotFound,
 }
@@ -270,6 +294,16 @@ impl HttpHandler for Rask {
                 let request = Request::new(req, captures, query_string, SECRET.as_bytes());
                 (*router.handler).handle(&request, &mut response);
             },
+            RouteResult::Static(ref mut file) => {
+                match file.read_to_string(&mut response.body) {
+                    Ok(_) => (),
+                    Err(e) => {
+                        error!("Error while reading/writing static content to response): {:?}.", e);
+                        write_500_error(res);
+                        return;
+                    }
+                }
+            }
             RouteResult::NotAllowedMethod => {
                 response.body = "405 Method Not Allowed".into();
                 response.status = StatusCode::MethodNotAllowed;
