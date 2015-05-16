@@ -18,6 +18,8 @@ use multimap::MultiMap;
 use session::Session;
 use cookies::Cookies;
 
+pub enum RequestMarker {}
+
 /// The struct that holds information about the incoming Request. The handlers will borrow this
 /// struct.
 pub struct Request<'a> {
@@ -28,8 +30,8 @@ pub struct Request<'a> {
     pub vars: HashMap<String, String>,
     pub body: String,
     pub form: MultiMap<String, String>,
-    pub session: Session<'a>,
-    pub cookies: Cookies<'a>,
+    pub session: Session<'a, RequestMarker>,
+    pub cookies: Cookies<'a, RequestMarker>,
 }
 
 impl<'a> Request<'a> {

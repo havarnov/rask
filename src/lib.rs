@@ -57,8 +57,8 @@ pub use hyper::method::Method;
 use url::UrlParser;
 
 use routing::Route;
-pub use request::Request;
-pub use response::Response;
+use request::Request;
+use response::Response;
 
 pub mod routing;
 pub mod response;

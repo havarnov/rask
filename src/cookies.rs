@@ -1,16 +1,21 @@
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::marker::PhantomData;
 
 use cookie::{CookieJar, Cookie};
 
-pub struct Cookies<'a> {
+use response::ResponseMarker;
+
+pub struct Cookies<'a, T> {
     cookie_jar: Rc<RefCell<Option<CookieJar<'a>>>>,
+    _marker : PhantomData<T>,
 }
 
-impl<'a> Cookies<'a> {
-    pub fn new(cookie_jar: Rc<RefCell<Option<CookieJar<'a>>>>) -> Cookies<'a> {
+impl<'a, T> Cookies<'a, T> {
+    pub fn new(cookie_jar: Rc<RefCell<Option<CookieJar<'a>>>>) -> Cookies<'a, T> {
         Cookies {
             cookie_jar: cookie_jar,
+            _marker: PhantomData,
         }
     }
 
@@ -20,7 +25,9 @@ impl<'a> Cookies<'a> {
             None => None
         }
     }
+}
 
+impl<'a> Cookies<'a, ResponseMarker> {
     pub fn set(&mut self, key: &str, value: &str) {
         match *self.cookie_jar.borrow_mut() {
             Some(ref cookie_jar) => cookie_jar.add(Cookie::new(key.into(), value.into())),

@@ -9,13 +9,15 @@ use hyper::status::StatusCode;
 use session::Session;
 use cookies::Cookies;
 
+pub enum ResponseMarker {}
+
 /// The struct that holds information about the response.
 pub struct Response<'a> {
     pub body: String,
     pub status: StatusCode,
     pub headers: Headers,
-    pub session: Session<'a>,
-    pub cookies: Cookies<'a>,
+    pub session: Session<'a, ResponseMarker>,
+    pub cookies: Cookies<'a, ResponseMarker>,
 }
 
 impl<'a> Response<'a> {
