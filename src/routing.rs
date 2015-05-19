@@ -59,7 +59,7 @@ fn create_regex_for_named(s: &str) -> String {
         return r"/".to_string();
     }
 
-    let re = Regex::new(r"^\{(?P<named>\w*)\}$|(?P<part>\w*)$").unwrap();
+    let re = Regex::new(r"^\{(?P<named>\w*)\}$|^(?P<part>\w*)$|^(?P<wildcard>\*\*)$").unwrap();
     let caps = re.captures(s).unwrap();
 
     if let Some(n) = caps.name("named") {
@@ -68,6 +68,10 @@ fn create_regex_for_named(s: &str) -> String {
 
     if let Some(p) = caps.name("part") {
         return format!(r"/{}", p).to_string();
+    }
+
+    if let Some(_) = caps.name("wildcard") {
+        return format!(r"/(.*)");
     }
 
     "".to_string()

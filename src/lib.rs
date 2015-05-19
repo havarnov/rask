@@ -42,10 +42,8 @@ extern crate cookie;
 
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::io::Write;
-use std::io::Read;
 use std::str::FromStr;
-use std::fs::File;
-use std::path::PathBuf;
+use std::sync::Arc;
 
 use hyper::Server;
 use hyper::header;
@@ -106,8 +104,7 @@ impl<F> Handler for F where F: Fn(&Request, &mut Response), F: Sync + Send {
 /// The Rask web application.
 pub struct Rask {
     routes: Vec<Route>,
-    not_found_handler: Box<Handler>,
-    serve_static: Option<ServeStatic>,
+    not_found_handler: Arc<Box<Handler>>,
 }
 
 impl Rask {
@@ -123,8 +120,7 @@ impl Rask {
     pub fn new() -> Rask {
         Rask {
             routes: Vec::new(),
-            not_found_handler: Box::new(default_404_handler),
-            serve_static: None }
+            not_found_handler: Arc::new(Box::new(default_404_handler)) }
     }
 
     /// Starts the web application. Blocks and dispatches new incoming requests.
@@ -220,18 +216,19 @@ impl Rask {
     ///
     /// If no 404 handler is registered a default handler will be called instead.
     pub fn register_404_handler<H: 'static + Handler>(&mut self, handler: H) {
-        self.not_found_handler = Box::new(handler);
+        self.not_found_handler = Arc::new(Box::new(handler));
     }
 
-    pub fn serve_static(&mut self, path: &str) {
-        self.serve_static = Some(ServeStatic {
-            root: PathBuf::from(path)
-        });
+    pub fn serve_static(&mut self, path: &str, dir: &str) {
+        let path = trailing_slash(path);
+        let serve_static_handler = ServeStatic::new(dir, &path, self.not_found_handler.clone());
+        let route = Route::with_methods(&format!("{}**", path), serve_static_handler, &[Method::Get]);
+        self.routes.push(route);
     }
 
-    fn find_route(&self, uri: &str, method: &Method) -> RouteResult {
+    fn find_route(&self, path: &str, method: &Method) -> RouteResult {
         for route in self.routes.iter() {
-            if route.re.is_match(uri) {
+            if route.re.is_match(path) {
                 if route.methods.is_empty() || route.methods.contains(method) {
                     return RouteResult::Found(&route);
                 }
@@ -241,69 +238,37 @@ impl Rask {
             }
         }
 
-        // FIXME: only serve to Get requests.
-        match self.serve_static {
-            Some(ref serve_static) => match serve_static.find(uri) {
-                Some(file) => return RouteResult::Static(file),
-                None => (),
-            },
-            None => ()
-        };
-
         RouteResult::NotFound
     }
 }
 
 enum RouteResult<'a> {
     Found(&'a Route),
-    Static(File),
     NotAllowedMethod,
     NotFound,
 }
 
+
 impl HttpHandler for Rask {
     fn handle(&self, req: HttpRequest, res: HttpResponse<Fresh>) {
-        let (url, query_string) = match req.uri {
-            RequestUri::AbsolutePath(ref p) => {
-                let parser = UrlParser::new();
-                match parser.parse_path(p) {
-                    Ok((path, query_string, _)) => {
-                        (format!("/{0}", path.connect("/")), query_string)
-                    },
-                    Err(_) => {
-                        error!("Couldn't parse path: {:?}.", p);
-                        write_500_error(res);
-                        return;
-                    }
-                }
-            },
-            uri => {
-                error!("Not supported 'RequestUri': {:?}.", uri);
+        let (path, query_string) = match get_path_and_query_string(&req.uri) {
+            Some(u_q) => u_q,
+            None => {
                 write_500_error(res);
                 return;
             }
         };
 
-        info!("{:?} {:?}", req.method, url);
+        info!("{:?} {:?}", req.method, path);
 
         let mut response = Response::new(SECRET.as_bytes());
 
-        match self.find_route(&url, &req.method) {
+        match self.find_route(&path, &req.method) {
             RouteResult::Found(router) => {
-                let captures = router.re.captures(&url);
+                let captures = router.re.captures(&path);
                 let request = Request::new(req, captures, query_string, SECRET.as_bytes());
                 (*router.handler).handle(&request, &mut response);
             },
-            RouteResult::Static(ref mut file) => {
-                match file.read_to_string(&mut response.body) {
-                    Ok(_) => (),
-                    Err(e) => {
-                        error!("Error while reading/writing static content to response): {:?}.", e);
-                        write_500_error(res);
-                        return;
-                    }
-                }
-            }
             RouteResult::NotAllowedMethod => {
                 response.body = "405 Method Not Allowed".into();
                 response.status = StatusCode::MethodNotAllowed;
@@ -358,3 +323,32 @@ fn default_404_handler(_: &Request, res: &mut Response) {
     res.status = StatusCode::NotFound;
 }
 
+fn trailing_slash(i: &str) -> String {
+    if !i.ends_with("/") {
+        format!("{}/", i)
+    }
+    else {
+        i.into()
+    }
+}
+
+fn get_path_and_query_string(uri: &RequestUri) -> Option<(String, Option<String>)> {
+    match *uri {
+        RequestUri::AbsolutePath(ref p) => {
+            let parser = UrlParser::new();
+            match parser.parse_path(p) {
+                Ok((path, query_string, _)) => {
+                    Some((path.iter().fold(String::from(""), |a, b| a + "/" + &b), query_string))
+                },
+                Err(_) => {
+                    error!("Couldn't parse path: {:?}.", p);
+                    None
+                }
+            }
+        },
+        ref uri => {
+            error!("Not supported 'RequestUri': {:?}.", uri);
+            None
+        }
+    }
+}
