@@ -227,6 +227,19 @@ impl Rask {
         self.not_found_handler = Arc::new(Box::new(handler));
     }
 
+    /// Setup the app to serve a directory as static resources. Typically used for
+    /// html, js and css.
+    ///
+    /// ```rust
+    ///
+    /// use rask::Rask;
+    /// use rask::request::Request;
+    /// use rask::response::Response;
+    ///
+    /// let mut app = Rask::new();
+    /// app.serve_static("/static/", "static/");
+    /// ```
+    ///
     pub fn serve_static(&mut self, path: &str, dir: &str) {
         let path = trailing_slash(path);
         let serve_static_handler = ServeStatic::new(dir, &path, self.not_found_handler.clone());
