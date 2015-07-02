@@ -1,7 +1,9 @@
 //! A micro web framework.
 //!
 //! ```no_run
-//! use rask::{Rask, Request, Response, StatusCode, Method};
+//! use rask::{Rask, StatusCode, Method};
+//! use rask::request::Request;
+//! use rask::response::Response;
 //!
 //! fn index(req: &Request, res: &mut Response) {
 //!     res.body = "Hello world!".into();
@@ -78,7 +80,9 @@ const SECRET: &'static str = "SUPER SECRET STRING";
 /// # Examples
 ///
 /// ```rust
-/// use rask::{Handler, Request, Response};
+/// use rask::Handler;
+/// use rask::request::Request;
+/// use rask::response::Response;
 ///
 /// struct FooHandler {
 ///     something: usize,
@@ -166,7 +170,9 @@ impl Rask {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rask::{Rask, Request, Response};
+    /// use rask::Rask;
+    /// use rask::request::Request;
+    /// use rask::response::Response;
     ///
     /// fn index(_: &Request, _: &mut Response) {
     /// }
@@ -188,7 +194,9 @@ impl Rask {
     /// # Examples
     ///
     /// ```rust
-    /// use rask::{Rask, Request, Response};
+    /// use rask::Rask;
+    /// use rask::request::Request;
+    /// use rask::response::Response;
     /// use rask::Method::*;
     ///
     /// fn only_post_and_put(_: &Request, _: &mut Response) {
