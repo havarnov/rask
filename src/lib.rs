@@ -46,6 +46,7 @@ use std::net::{Ipv4Addr, SocketAddrV4};
 use std::io::Write;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::borrow::Cow;
 
 use hyper::Server;
 use hyper::header;
@@ -344,12 +345,12 @@ fn default_404_handler(_: &Request, res: &mut Response) {
     res.status = StatusCode::NotFound;
 }
 
-fn trailing_slash(i: &str) -> String {
+fn trailing_slash<'a>(i: &'a str) -> Cow<'a, str> {
     if !i.ends_with("/") {
-        format!("{}/", i)
+        Cow::Owned(format!("{}/", i))
     }
     else {
-        i.into()
+        Cow::Borrowed(i)
     }
 }
 
