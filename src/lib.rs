@@ -255,7 +255,7 @@ impl Rask {
                     return RouteResult::Found(&route);
                 }
                 else {
-                    return RouteResult::NotAllowedMethod;
+                    return RouteResult::MethodNotAllowed;
                 }
             }
         }
@@ -266,7 +266,7 @@ impl Rask {
 
 enum RouteResult<'a> {
     Found(&'a Route),
-    NotAllowedMethod,
+    MethodNotAllowed,
     NotFound,
 }
 
@@ -291,7 +291,7 @@ impl HttpHandler for Rask {
                 let request = Request::new(req, captures, query_string, SECRET.as_bytes());
                 (*router.handler).handle(&request, &mut response);
             },
-            RouteResult::NotAllowedMethod => {
+            RouteResult::MethodNotAllowed => {
                 response.body = "405 Method Not Allowed".into();
                 response.status = StatusCode::MethodNotAllowed;
             }
