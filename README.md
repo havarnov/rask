@@ -9,7 +9,9 @@ This project is very much a work in progress.
 ````rust
 extern crate rask;
 
-use rask::{Rask, Request, Response, StatusCode, Method};
+use rask::{Rask, StatusCode, Method};
+use rask::request::Request;
+use rask::response::Response;
 
 fn index(req: &Request, res: &mut Response) {
     res.body = "Hello world!".into();
@@ -43,7 +45,9 @@ fn main() {
 ````rust
 extern crate rask;
 
-use rask::{Rask, Request, Response, Method};
+use rask::{Rask, Method};
+use rask::request::Request;
+use rask::response::Response;
 
 fn index(req: &Request, res: &mut Response) {
     res.body = match req.session.get("username") {
