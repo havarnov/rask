@@ -2,6 +2,7 @@
 //!
 //! ```no_run
 //! use rask::{Rask, StatusCode, Method};
+//! use rask::Handler;
 //! use rask::request::Request;
 //! use rask::response::Response;
 //!
