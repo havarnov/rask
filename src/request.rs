@@ -36,6 +36,20 @@ pub struct Request<'a> {
 
 impl<'a> Request<'a> {
     #[doc(hidden)]
+    pub fn dummy() ->Request<'a> {
+        Request {
+            method: Method::Extension("dummy".into()),
+            headers: Headers::new(),
+            uri: RequestUri::AbsolutePath("dummy".into()),
+            gets: MultiMap::new(),
+            vars: HashMap::new(),
+            body: "".into(),
+            form: MultiMap::new(),
+            session: Session::new(Rc::new(RefCell::new(None))),
+            cookies: Cookies::new(Rc::new(RefCell::new(None))) }
+    }
+
+    #[doc(hidden)]
     pub fn new(req: HttpRequest, captures: Option<Captures>, query_string: Option<String>, secret: &[u8]) -> Request<'a> {
         let mut req = req;
         let mut body = String::new();

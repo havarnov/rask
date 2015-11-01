@@ -1,9 +1,7 @@
 //! A micro web framework.
 //!
 //! ```no_run
-//! use rask::Rask;
-//! use rask::StatusCode;
-//! use rask::Method;
+//! use rask::{Rask, StatusCode, Method};
 //! use rask::Handler;
 //! use rask::request::Request;
 //! use rask::response::Response;
@@ -49,6 +47,8 @@ use std::net::{Ipv4Addr, SocketAddrV4};
 use std::io::Write;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::borrow::Cow;
+use std::collections::HashMap;
 
 use hyper::Server;
 use hyper::header;
@@ -111,7 +111,7 @@ impl<F> Handler for F where F: Fn(&Request, &mut Response), F: Sync + Send {
 /// The Rask web application.
 pub struct Rask {
     routes: Vec<Route>,
-    not_found_handler: Arc<Box<Handler>>,
+    error_handlers: HashMap<StatusCode, Arc<Box<Handler>>>,
 }
 
 impl Rask {
@@ -125,9 +125,12 @@ impl Rask {
     /// let app = Rask::new();
     /// ```
     pub fn new() -> Rask {
+        let mut default_error_handlers: HashMap<StatusCode, Arc<Box<Handler>>> = HashMap::new();
+        default_error_handlers.insert(StatusCode::NotFound, Arc::new(Box::new(default_404_handler)));
+        default_error_handlers.insert(StatusCode::InternalServerError, Arc::new(Box::new(default_500_handler)));
         Rask {
             routes: Vec::new(),
-            not_found_handler: Arc::new(Box::new(default_404_handler)) }
+            error_handlers: default_error_handlers }
     }
 
     /// Starts the web application. Blocks and dispatches new incoming requests.
@@ -153,7 +156,7 @@ impl Rask {
         };
         info!("Running on {:?}:{:?}", host, port);
         // FIXME: hard code number of threads, no good.
-        Server::http(self).listen_threads(SocketAddrV4::new(ip, port), 2).unwrap();
+        Server::http(SocketAddrV4::new(ip, port)).unwrap().handle_threads(self, 2).unwrap();
     }
 
     /// Register a handler for a given route. Rask will dispatch request that matches the
@@ -222,17 +225,28 @@ impl Rask {
         self.routes.push(route);
     }
 
-    /// Register a 404 handler. This handler will be called if an incoming request
-    /// doesn't match any of the registered routes.
-    ///
-    /// If no 404 handler is registered a default handler will be called instead.
-    pub fn register_404_handler<H: 'static + Handler>(&mut self, handler: H) {
-        self.not_found_handler = Arc::new(Box::new(handler));
+    /// Register a error handler for the specified http status code. This will only have an
+    /// effect for NotFound (404) and InternalServerError (500) for now.
+    pub fn register_error_handler<H: 'static + Handler>(&mut self, status_code: StatusCode, handler: H) {
+        self.error_handlers.insert(status_code, Arc::new(Box::new(handler)));
     }
 
+    /// Setup the app to serve a directory as static resources. Typically used for
+    /// html, js and css.
+    ///
+    /// ```rust
+    ///
+    /// use rask::Rask;
+    /// use rask::request::Request;
+    /// use rask::response::Response;
+    ///
+    /// let mut app = Rask::new();
+    /// app.serve_static("/static/", "static/");
+    /// ```
+    ///
     pub fn serve_static(&mut self, path: &str, dir: &str) {
         let path = trailing_slash(path);
-        let serve_static_handler = ServeStatic::new(dir, &path, self.not_found_handler.clone());
+        let serve_static_handler = ServeStatic::new(dir, &path, self.error_handlers[&StatusCode::NotFound].clone());
         let route = Route::with_methods(&format!("{}**", path), serve_static_handler, &[Method::Get]);
         self.routes.push(route);
     }
@@ -244,7 +258,7 @@ impl Rask {
                     return RouteResult::Found(&route);
                 }
                 else {
-                    return RouteResult::NotAllowedMethod;
+                    return RouteResult::MethodNotAllowed;
                 }
             }
         }
@@ -255,7 +269,7 @@ impl Rask {
 
 enum RouteResult<'a> {
     Found(&'a Route),
-    NotAllowedMethod,
+    MethodNotAllowed,
     NotFound,
 }
 
@@ -263,9 +277,10 @@ enum RouteResult<'a> {
 impl HttpHandler for Rask {
     fn handle(&self, req: HttpRequest, res: HttpResponse<Fresh>) {
         let (path, query_string) = match get_path_and_query_string(&req.uri) {
-            Some(u_q) => u_q,
+            Some((path, query_string)) => (path, query_string),
             None => {
-                write_500_error(res);
+                warn!("Couldn't parse path and/or query string from RequestUri. Failing with 500 error.");
+                self.error_handlers[&StatusCode::InternalServerError].handle(&Request::dummy(), &mut Response::no_cookies());
                 return;
             }
         };
@@ -280,13 +295,13 @@ impl HttpHandler for Rask {
                 let request = Request::new(req, captures, query_string, SECRET.as_bytes());
                 (*router.handler).handle(&request, &mut response);
             },
-            RouteResult::NotAllowedMethod => {
+            RouteResult::MethodNotAllowed => {
                 response.body = "405 Method Not Allowed".into();
                 response.status = StatusCode::MethodNotAllowed;
             }
             RouteResult::NotFound => {
                 let req = &Request::new(req, None, None, SECRET.as_bytes());
-                self.not_found_handler.handle(req, &mut response);
+                self.error_handlers[&StatusCode::NotFound].handle(req, &mut response);
             }
         }
 
@@ -294,14 +309,7 @@ impl HttpHandler for Rask {
     }
 }
 
-fn write_500_error(hyper_res: HttpResponse<Fresh>) {
-    let mut res = Response::no_cookies();
-    res.body = "500 Internal server error".into();
-    res.status = StatusCode::InternalServerError;
-    write_response(hyper_res, res);
-}
-
-const SERVER_NAME: &'static str = "Rask/0.0.1 Rust/1.0-beta2";
+const SERVER_NAME: &'static str = "Rask/0.0.1 Rust/1.*";
 
 fn write_response(hyper_res: HttpResponse<Fresh>, rask_res: Response) {
     let mut rask_res = rask_res;
@@ -311,7 +319,7 @@ fn write_response(hyper_res: HttpResponse<Fresh>, rask_res: Response) {
     let bytes_len = bytes.len();
 
     if let Some(ref cookie_jar) = *rask_res.session.cookie_jar.borrow() {
-        let set_cookie_header = header::SetCookie::from_cookie_jar(&cookie_jar);
+        let set_cookie_header = header::SetCookie::from_cookie_jar(cookie_jar);
         rask_res.headers.set(set_cookie_header);
     }
 
@@ -334,12 +342,17 @@ fn default_404_handler(_: &Request, res: &mut Response) {
     res.status = StatusCode::NotFound;
 }
 
-fn trailing_slash(i: &str) -> String {
+fn default_500_handler(_: &Request, res: &mut Response) {
+    res.body = "500 Internal server error".into();
+    res.status = StatusCode::InternalServerError;
+}
+
+fn trailing_slash<'a>(i: &'a str) -> Cow<'a, str> {
     if !i.ends_with("/") {
-        format!("{}/", i)
+        Cow::Owned(format!("{}/", i))
     }
     else {
-        i.into()
+        Cow::Borrowed(i)
     }
 }
 
