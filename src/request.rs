@@ -3,9 +3,6 @@ use std::collections::HashMap;
 use regex::Captures;
 
 use hyper::server::request::Request as HttpRequest;
-use hyper::uri::RequestUri;
-
-use url::UrlParser;
 
 use multimap::MultiMap;
 
@@ -14,47 +11,26 @@ pub enum RequestMarker {}
 /// The struct that holds information about the incoming Request. The handlers will borrow this
 /// struct.
 pub struct Request<'a, 'b: 'a> {
-    pub inner: HttpRequest<'a, 'b>,
+    inner: HttpRequest<'a, 'b>,
+    pub path: Option<String>,
+    pub gets: MultiMap<String, String>,
     pub vars: HashMap<String, String>,
 }
 
 impl<'a, 'b> Request<'a, 'b> {
     #[doc(hidden)]
-    pub fn new(req: HttpRequest<'a, 'b>, captures: Option<Captures>) -> Request<'a, 'b> {
+    pub fn new(req: HttpRequest<'a, 'b>, captures: Option<Captures>, path: Option<String>, query_string: Option<String>) -> Request<'a, 'b> {
         Request {
             inner: req,
+            path: path,
+            gets: query_string
+                .map(|s| parse_query_string(&s))
+                .unwrap_or(MultiMap::new()),
             vars: captures
                 .map(|c| c
                      .iter_named()
                      .map(|(k,v)| (k.to_string(), v.unwrap().to_string())).collect())
                 .unwrap_or(HashMap::new()),
-        }
-    }
-
-    pub fn gets(&self) -> MultiMap<String, String> {
-        get_query_string(&self.inner.uri)
-            .map(|s| parse_query_string(&s))
-            .unwrap_or(MultiMap::new())
-    }
-}
-
-fn get_query_string(uri: &RequestUri) -> Option<String> {
-    match *uri {
-        RequestUri::AbsolutePath(ref p) => {
-            let parser = UrlParser::new();
-            match parser.parse_path(p) {
-                Ok((_, query_string, _)) => {
-                    query_string
-                },
-                Err(_) => {
-                    error!("Couldn't parse path: {:?}.", p);
-                    None
-                }
-            }
-        },
-        ref uri => {
-            error!("Not supported 'RequestUri': {:?}.", uri);
-            None
         }
     }
 }

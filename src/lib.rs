@@ -274,10 +274,10 @@ impl HttpHandler for Rask {
     fn handle(&self, req: HttpRequest, res: HttpResponse<Fresh>) {
         let mut response = Response::new(res);
 
-        let path = match get_path_and_query_string(&req.uri) {
-            Some((path, _)) => path,
+        let (path, query_string) = match get_path_and_query_string(&req.uri) {
+            Some((path, query_string)) => (path, query_string),
             None => {
-                let request = Request::new(req, None);
+                let request = Request::new(req, None, None, None);
                 warn!("Couldn't parse path and/or query string from RequestUri. Failing with 500 error.");
                 self.error_handlers[&StatusCode::InternalServerError].handle(&request, response);
                 return;
@@ -289,7 +289,7 @@ impl HttpHandler for Rask {
         match self.find_route(&path, &req.method) {
             RouteResult::Found(router) => {
                 let captures = router.re.captures(&path);
-                let request = Request::new(req, captures);
+                let request = Request::new(req, captures, Some(path.clone()), query_string);
                 (*router.handler).handle(&request, response);
             },
             RouteResult::MethodNotAllowed => {
@@ -297,7 +297,7 @@ impl HttpHandler for Rask {
                 let _ = response.write_body("405 Method Not Allowed");
             }
             RouteResult::NotFound => {
-                let req = Request::new(req, None);
+                let req = Request::new(req, None, Some(path), query_string);
                 self.error_handlers[&StatusCode::NotFound].handle(&req, response);
             }
         }

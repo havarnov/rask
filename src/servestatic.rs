@@ -6,7 +6,6 @@ use std::sync::Arc;
 use hyper::status::StatusCode;
 
 use super::Handler;
-use super::get_path_and_query_string;
 use request::Request;
 use response::Response;
 
@@ -28,9 +27,9 @@ impl ServeStatic {
 
 impl Handler for ServeStatic {
     fn handle(&self, req: &Request, res: Response) {
-        let path = match get_path_and_query_string(&req.inner.uri) {
-            Some((path, _)) => path,
-            None => {
+        let path = match &req.path {
+            &Some(ref path) => path,
+            &None => {
                 let mut res = res;
                 res.status(StatusCode::InternalServerError);
                 let _ = res.write_body("Internal 500 error");
