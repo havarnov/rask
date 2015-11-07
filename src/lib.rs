@@ -1,25 +1,25 @@
 //! A micro web framework.
 //!
-//! ```no_run
+//! ```
 //! use rask::{Rask, StatusCode, Method};
 //! use rask::Handler;
 //! use rask::request::Request;
 //! use rask::response::Response;
 //!
-//! fn index(req: &Request, res: &mut Response) {
-//!     res.body = "Hello world!".into();
-//!     // defaults to Statuscode::Ok
+//! fn index(req: &Request, res: Response) {
+//!     res.write_body("Hello world!");
 //! }
 //!
-//! fn create(req: &Request, res: &mut Response) {
+//! fn create(req: &Request, res: Response) {
 //!     // do something with req.body
-//!     res.body = "something created".into();
-//!     res.status = StatusCode::Created;
+//!     let mut res = res;
+//!     res.status(StatusCode::Created);
+//!     res.write_body("Hello world!");
 //! }
 //!
-//! fn profile(req: &Request, res: &mut Response) {
+//! fn profile(req: &Request, res: Response) {
 //!     let name = req.vars.get("name").unwrap();
-//!     res.body = format!("Hello, {0}", name);
+//!     res.write_body(&format!("Hello, {0}", name));
 //! }
 //!
 //! fn main() {
@@ -30,7 +30,8 @@
 //!     app.register_with_methods("/create", &[Method::Post], create);
 //!     app.register_with_methods("/profile/{name}", &[Method::Get], profile);
 //!
-//!     app.run("0.0.0.0", 8080);
+//!     // must be commented out due to 'rust test'.
+//!     // app.run("0.0.0.0", 8080);
 //! }
 //! ```
 
@@ -86,7 +87,7 @@ mod servestatic;
 /// }
 ///
 /// impl Handler for FooHandler {
-///     fn handle(&self, req: &Request, res: &mut Response) {
+///     fn handle(&self, req: &Request, res: Response) {
 ///         // handle request
 ///     }
 /// }
@@ -174,7 +175,7 @@ impl Rask {
     /// use rask::request::Request;
     /// use rask::response::Response;
     ///
-    /// fn index(_: &Request, _: &mut Response) {
+    /// fn index(_: &Request, _: Response) {
     /// }
     ///
     /// let mut app = Rask::new();
@@ -199,7 +200,7 @@ impl Rask {
     /// use rask::response::Response;
     /// use rask::Method::*;
     ///
-    /// fn only_post_and_put(_: &Request, _: &mut Response) {
+    /// fn only_post_and_put(_: &Request, _: Response) {
     /// }
     ///
     /// let mut app = Rask::new();

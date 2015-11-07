@@ -51,30 +51,30 @@ fn parse_query_string(query_string: &str) -> MultiMap<String, String> {
     map
 }
 
-//#[test]
-//fn create_multimap_one_key_value_pair() {
-    //let m = parse_query_string("key=value");
+#[test]
+fn create_multimap_one_key_value_pair() {
+    let m = parse_query_string("key=value");
 
-    //assert_eq!(m.len(), 1);
-    //assert_eq!(m["key"], "value".to_string());
-//}
+    assert_eq!(m.len(), 1);
+    assert_eq!(m["key"], "value".to_string());
+}
 
-//#[test]
-//fn create_multimap_multiple_pairs() {
-    //let m = parse_query_string("key=value&key2=value2&key3=value3");
+#[test]
+fn create_multimap_multiple_pairs() {
+    let m = parse_query_string("key=value&key2=value2&key3=value3");
 
-    //assert_eq!(m.len(), 3);
-    //assert_eq!(m["key"], "value".to_string());
-    //assert_eq!(m["key2"], "value2".to_string());
-    //assert_eq!(m["key3"], "value3".to_string());
-//}
+    assert_eq!(m.len(), 3);
+    assert_eq!(m["key"], "value".to_string());
+    assert_eq!(m["key2"], "value2".to_string());
+    assert_eq!(m["key3"], "value3".to_string());
+}
 
-//#[test]
-//fn create_multimap_one_key_multiple_values() {
-    //let m = parse_query_string("key=value&key=value2&key=value3");
+#[test]
+fn create_multimap_one_key_multiple_values() {
+    let m = parse_query_string("key=value&key=value2&key=value3");
 
-    //assert_eq!(m.len(), 1);
-    //assert_eq!(m["key"], "value".to_string());
-    //assert_eq!(m.get_vec("key"), Some(&vec!["value".into(), "value2".into(), "value3".into()]));
-//}
+    assert_eq!(m.len(), 1);
+    assert_eq!(m["key"], "value".to_string());
+    assert_eq!(m.get_vec("key"), Some(&vec!["value".into(), "value2".into(), "value3".into()]));
+}
 
