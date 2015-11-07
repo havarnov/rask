@@ -47,7 +47,7 @@ use std::net::{Ipv4Addr, SocketAddrV4};
 use std::io::Write;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::borrow::Cow;
+//use std::borrow::Cow;
 use std::collections::HashMap;
 
 use hyper::Server;
@@ -65,14 +65,14 @@ use url::UrlParser;
 use routing::Route;
 use request::Request;
 use response::Response;
-use servestatic::ServeStatic;
+//use servestatic::ServeStatic;
 
 pub mod routing;
 pub mod response;
 pub mod request;
 pub mod session;
 pub mod cookies;
-mod servestatic;
+//mod servestatic;
 
 const SECRET: &'static str = "SUPER SECRET STRING";
 
@@ -244,12 +244,12 @@ impl Rask {
     /// app.serve_static("/static/", "static/");
     /// ```
     ///
-    pub fn serve_static(&mut self, path: &str, dir: &str) {
-        let path = trailing_slash(path);
-        let serve_static_handler = ServeStatic::new(dir, &path, self.error_handlers[&StatusCode::NotFound].clone());
-        let route = Route::with_methods(&format!("{}**", path), serve_static_handler, &[Method::Get]);
-        self.routes.push(route);
-    }
+    //pub fn serve_static(&mut self, path: &str, dir: &str) {
+        //let path = trailing_slash(path);
+        //let serve_static_handler = ServeStatic::new(dir, &path, self.error_handlers[&StatusCode::NotFound].clone());
+        //let route = Route::with_methods(&format!("{}**", path), serve_static_handler, &[Method::Get]);
+        //self.routes.push(route);
+    //}
 
     fn find_route(&self, path: &str, method: &Method) -> RouteResult {
         for route in self.routes.iter() {
@@ -276,12 +276,13 @@ enum RouteResult<'a> {
 
 impl HttpHandler for Rask {
     fn handle(&self, req: HttpRequest, res: HttpResponse<Fresh>) {
-        let (path, query_string) = match get_path_and_query_string(&req.uri) {
-            Some((path, query_string)) => (path, query_string),
+        let path = match get_path_and_query_string(&req.uri) {
+            Some((path, _)) => path,
             None => {
-                warn!("Couldn't parse path and/or query string from RequestUri. Failing with 500 error.");
-                self.error_handlers[&StatusCode::InternalServerError].handle(&Request::dummy(), &mut Response::no_cookies());
-                return;
+                panic!("asjsoadjasld");
+                //warn!("Couldn't parse path and/or query string from RequestUri. Failing with 500 error.");
+                //self.error_handlers[&StatusCode::InternalServerError].handle(&Request::dummy(), &mut Response::no_cookies());
+                //return;
             }
         };
 
@@ -292,7 +293,7 @@ impl HttpHandler for Rask {
         match self.find_route(&path, &req.method) {
             RouteResult::Found(router) => {
                 let captures = router.re.captures(&path);
-                let request = Request::new(req, captures, query_string, SECRET.as_bytes());
+                let request = Request::new(req, captures);
                 (*router.handler).handle(&request, &mut response);
             },
             RouteResult::MethodNotAllowed => {
@@ -300,8 +301,8 @@ impl HttpHandler for Rask {
                 response.status = StatusCode::MethodNotAllowed;
             }
             RouteResult::NotFound => {
-                let req = &Request::new(req, None, None, SECRET.as_bytes());
-                self.error_handlers[&StatusCode::NotFound].handle(req, &mut response);
+                let req = Request::new(req, None);
+                self.error_handlers[&StatusCode::NotFound].handle(&req, &mut response);
             }
         }
 
@@ -347,14 +348,14 @@ fn default_500_handler(_: &Request, res: &mut Response) {
     res.status = StatusCode::InternalServerError;
 }
 
-fn trailing_slash<'a>(i: &'a str) -> Cow<'a, str> {
-    if !i.ends_with("/") {
-        Cow::Owned(format!("{}/", i))
-    }
-    else {
-        Cow::Borrowed(i)
-    }
-}
+//fn trailing_slash<'a>(i: &'a str) -> Cow<'a, str> {
+    //if !i.ends_with("/") {
+        //Cow::Owned(format!("{}/", i))
+    //}
+    //else {
+        //Cow::Borrowed(i)
+    //}
+//}
 
 fn get_path_and_query_string(uri: &RequestUri) -> Option<(String, Option<String>)> {
     match *uri {
