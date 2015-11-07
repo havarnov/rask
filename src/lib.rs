@@ -150,8 +150,7 @@ impl Rask {
             Err(e) => panic!(e)
         };
         info!("Running on {:?}:{:?}", host, port);
-        // FIXME: hard code number of threads, no good.
-        Server::http(SocketAddrV4::new(ip, port)).unwrap().handle_threads(self, 2).unwrap();
+        Server::http(SocketAddrV4::new(ip, port)).unwrap().handle(self).unwrap();
     }
 
     /// Register a handler for a given route. Rask will dispatch request that matches the
