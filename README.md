@@ -13,20 +13,20 @@ use rask::{Rask, StatusCode, Method};
 use rask::request::Request;
 use rask::response::Response;
 
-fn index(req: &Request, res: &mut Response) {
-    res.body = "Hello world!".into();
+fn index(_: &Request, mut res: Response) {
+    res.write_body("Hello world!");
     // defaults to Statuscode::Ok
 }
 
-fn create(req: &Request, res: &mut Response) {
+fn create(req: &Request, mut res: Response) {
     // do something with req.body
-    res.body = "something created".into();
-    res.status = StatusCode::Created;
+    res.status(StatusCode::Created);
+    res.write_body("something created");
 }
 
 fn profile(req: &Request, res: &mut Response) {
     let name = req.vars.get("name").unwrap();
-    res.body = format!("Hello, {0}", name);
+    res.write_body(&format!("Hello, {0}", name));
 }
 
 fn main() {
@@ -36,11 +36,13 @@ fn main() {
     app.register_with_methods("/create", &[Method::Post], create);
     app.register_with_methods("/profile/{name}", &[Method::Get], profile);
 
-    app.serve_static("static");
+    app.serve_static("/static/", "static/");
 
     app.run("0.0.0.0", 8080);
 }
 ````
+
+The following code is not up to date, e.g. ‘session’ will be handled differently.
 
 ````rust
 extern crate rask;
@@ -89,7 +91,6 @@ fn main() {
 
 ## Planned features
 
-* serve static
 * redirect to handler/url
 * session
 * cookies
