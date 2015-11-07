@@ -4,8 +4,6 @@ use hyper::server::response::Response as HttpResponse;
 use hyper::status::StatusCode;
 use hyper::net::Fresh;
 
-pub enum ResponseMarker {}
-
 /// The struct that holds information about the response.
 pub struct Response<'a, W: Any = Fresh> {
     inner: HttpResponse<'a, W>
