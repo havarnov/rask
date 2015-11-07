@@ -10,9 +10,8 @@
 //!     res.write_body("Hello world!");
 //! }
 //!
-//! fn create(req: &Request, res: Response) {
+//! fn create(req: &Request, mut res: Response) {
 //!     // do something with req.body
-//!     let mut res = res;
 //!     res.status(StatusCode::Created);
 //!     res.write_body("Hello world!");
 //! }
@@ -302,14 +301,12 @@ impl HttpHandler for Rask {
     }
 }
 
-fn default_404_handler(_: &Request, res: Response) {
-    let mut res = res;
+fn default_404_handler(_: &Request, mut res: Response) {
     res.status(StatusCode::NotFound);
     let _ = res.write_body("404 Not Found");
 }
 
-fn default_500_handler(_: &Request, res: Response) {
-    let mut res = res;
+fn default_500_handler(_: &Request, mut res: Response) {
     res.status(StatusCode::InternalServerError);
     let _ = res.write_body("500 Internal server error");
 }

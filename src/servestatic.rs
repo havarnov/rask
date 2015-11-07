@@ -26,11 +26,10 @@ impl ServeStatic {
 }
 
 impl Handler for ServeStatic {
-    fn handle(&self, req: &Request, res: Response) {
+    fn handle(&self, req: &Request, mut res: Response) {
         let path = match &req.path {
             &Some(ref path) => path,
             &None => {
-                let mut res = res;
                 res.status(StatusCode::InternalServerError);
                 let _ = res.write_body("Internal 500 error");
                 return;
