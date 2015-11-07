@@ -68,8 +68,6 @@ use servestatic::ServeStatic;
 pub mod routing;
 pub mod response;
 pub mod request;
-pub mod session;
-pub mod cookies;
 mod servestatic;
 
 /// Trait that all handlers must implement.
