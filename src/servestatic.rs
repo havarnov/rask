@@ -27,20 +27,24 @@ impl ServeStatic {
 }
 
 impl Handler for ServeStatic {
-    fn handle(&self, req: &Request, res: &mut Response) {
-        let path = match get_path_and_query_string(&req.uri) {
+    fn handle(&self, req: &Request, res: Response) {
+        let path = match get_path_and_query_string(&req.inner.uri) {
             Some((path, _)) => path,
             None => {
-                res.body = "Internal 500 error".into();
-                res.status = StatusCode::InternalServerError;
+                let mut res = res;
+                res.status(StatusCode::InternalServerError);
+                let _ = res.write_body("Internal 500 error");
                 return;
             }
         };
 
         match File::open(self.root.join(path.trim_left_matches(&self.prefix))) {
             Ok(ref mut file) => {
+                let mut buffer = String::new();
+
                 // FIXME: handle error.
-                let _ = file.read_to_string(&mut res.body);
+                let _ = file.read_to_string(&mut buffer);
+                let _ = res.write_body(&buffer);
             }
             Err(_) => {
                 self.not_found_handler.handle(req, res);

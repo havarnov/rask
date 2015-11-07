@@ -46,7 +46,7 @@ extern crate cookie;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::str::FromStr;
 use std::sync::Arc;
-//use std::borrow::Cow;
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use hyper::Server;
@@ -63,14 +63,14 @@ use url::UrlParser;
 use routing::Route;
 use request::Request;
 use response::Response;
-//use servestatic::ServeStatic;
+use servestatic::ServeStatic;
 
 pub mod routing;
 pub mod response;
 pub mod request;
 pub mod session;
 pub mod cookies;
-//mod servestatic;
+mod servestatic;
 
 /// Trait that all handlers must implement.
 ///
@@ -240,12 +240,12 @@ impl Rask {
     /// app.serve_static("/static/", "static/");
     /// ```
     ///
-    //pub fn serve_static(&mut self, path: &str, dir: &str) {
-        //let path = trailing_slash(path);
-        //let serve_static_handler = ServeStatic::new(dir, &path, self.error_handlers[&StatusCode::NotFound].clone());
-        //let route = Route::with_methods(&format!("{}**", path), serve_static_handler, &[Method::Get]);
-        //self.routes.push(route);
-    //}
+    pub fn serve_static(&mut self, path: &str, dir: &str) {
+        let path = trailing_slash(path);
+        let serve_static_handler = ServeStatic::new(dir, &path, self.error_handlers[&StatusCode::NotFound].clone());
+        let route = Route::with_methods(&format!("{}**", path), serve_static_handler, &[Method::Get]);
+        self.routes.push(route);
+    }
 
     fn find_route(&self, path: &str, method: &Method) -> RouteResult {
         for route in self.routes.iter() {
@@ -342,14 +342,14 @@ fn default_500_handler(_: &Request, res: Response) {
     let _ = res.write_body("500 Internal server error");
 }
 
-//fn trailing_slash<'a>(i: &'a str) -> Cow<'a, str> {
-    //if !i.ends_with("/") {
-        //Cow::Owned(format!("{}/", i))
-    //}
-    //else {
-        //Cow::Borrowed(i)
-    //}
-//}
+fn trailing_slash<'a>(i: &'a str) -> Cow<'a, str> {
+    if !i.ends_with("/") {
+        Cow::Owned(format!("{}/", i))
+    }
+    else {
+        Cow::Borrowed(i)
+    }
+}
 
 fn get_path_and_query_string(uri: &RequestUri) -> Option<(String, Option<String>)> {
     match *uri {

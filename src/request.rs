@@ -14,7 +14,7 @@ pub enum RequestMarker {}
 /// The struct that holds information about the incoming Request. The handlers will borrow this
 /// struct.
 pub struct Request<'a, 'b: 'a> {
-    inner: HttpRequest<'a, 'b>,
+    pub inner: HttpRequest<'a, 'b>,
     pub vars: HashMap<String, String>,
 }
 
