@@ -28,12 +28,10 @@ impl<'a> Response<'a, Fresh> {
         self.inner.headers_mut().set(header);
     }
 
-    pub fn write_body(self, body: &str) -> IoResult<()> {
-        let mut mut_self = self;
-
+    pub fn write_body(mut self, body: &str) -> IoResult<()> {
         let bytes = body.as_bytes();
-        mut_self.set_header(header::ContentLength(bytes.len() as u64));
-        mut_self.inner.send(&bytes)
+        self.set_header(header::ContentLength(bytes.len() as u64));
+        self.inner.send(&bytes)
     }
 }
 
