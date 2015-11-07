@@ -44,14 +44,12 @@ extern crate multimap;
 extern crate cookie;
 
 use std::net::{Ipv4Addr, SocketAddrV4};
-use std::io::Write;
 use std::str::FromStr;
 use std::sync::Arc;
 //use std::borrow::Cow;
 use std::collections::HashMap;
 
 use hyper::Server;
-use hyper::header;
 use hyper::uri::RequestUri;
 use hyper::server::response::Response as HttpResponse;
 use hyper::server::request::Request as HttpRequest;
@@ -73,8 +71,6 @@ pub mod request;
 pub mod session;
 pub mod cookies;
 //mod servestatic;
-
-const SECRET: &'static str = "SUPER SECRET STRING";
 
 /// Trait that all handlers must implement.
 ///
@@ -99,11 +95,11 @@ const SECRET: &'static str = "SUPER SECRET STRING";
 ///
 /// ```
 pub trait Handler: Sync + Send {
-    fn handle(&self, &Request, &mut Response);
+    fn handle(&self, &Request, Response);
 }
 
-impl<F> Handler for F where F: Fn(&Request, &mut Response), F: Sync + Send {
-    fn handle(&self, req: &Request, res: &mut Response) {
+impl<F> Handler for F where F: Fn(&Request, Response), F: Sync + Send {
+    fn handle(&self, req: &Request, res: Response) {
         (*self)(req, res);
     }
 }
@@ -276,76 +272,74 @@ enum RouteResult<'a> {
 
 impl HttpHandler for Rask {
     fn handle(&self, req: HttpRequest, res: HttpResponse<Fresh>) {
+        let mut response = Response::new(res);
+
         let path = match get_path_and_query_string(&req.uri) {
             Some((path, _)) => path,
             None => {
-                panic!("asjsoadjasld");
-                //warn!("Couldn't parse path and/or query string from RequestUri. Failing with 500 error.");
-                //self.error_handlers[&StatusCode::InternalServerError].handle(&Request::dummy(), &mut Response::no_cookies());
-                //return;
+                let request = Request::new(req, None);
+                warn!("Couldn't parse path and/or query string from RequestUri. Failing with 500 error.");
+                self.error_handlers[&StatusCode::InternalServerError].handle(&request, response);
+                return;
             }
         };
 
         info!("{:?} {:?}", req.method, path);
 
-        let mut response = Response::new(SECRET.as_bytes());
-
         match self.find_route(&path, &req.method) {
             RouteResult::Found(router) => {
                 let captures = router.re.captures(&path);
                 let request = Request::new(req, captures);
-                (*router.handler).handle(&request, &mut response);
+                (*router.handler).handle(&request, response);
             },
             RouteResult::MethodNotAllowed => {
-                response.body = "405 Method Not Allowed".into();
-                response.status = StatusCode::MethodNotAllowed;
+                response.status(StatusCode::MethodNotAllowed);
+                let _ = response.write_body("405 Method Not Allowed");
             }
             RouteResult::NotFound => {
                 let req = Request::new(req, None);
-                self.error_handlers[&StatusCode::NotFound].handle(&req, &mut response);
+                self.error_handlers[&StatusCode::NotFound].handle(&req, response);
             }
         }
-
-        write_response(res, response);
     }
 }
 
-const SERVER_NAME: &'static str = "Rask/0.0.1 Rust/1.*";
+//fn write_response(hyper_res: HttpResponse<Fresh>, rask_res: Response) {
+    //let mut rask_res = rask_res;
+    //let mut hyper_res = hyper_res;
 
-fn write_response(hyper_res: HttpResponse<Fresh>, rask_res: Response) {
-    let mut rask_res = rask_res;
-    let mut hyper_res = hyper_res;
+    //let bytes = rask_res.body.as_bytes();
+    //let bytes_len = bytes.len();
 
-    let bytes = rask_res.body.as_bytes();
-    let bytes_len = bytes.len();
+    //if let Some(ref cookie_jar) = *rask_res.session.cookie_jar.borrow() {
+        //let set_cookie_header = header::SetCookie::from_cookie_jar(cookie_jar);
+        //rask_res.headers.set(set_cookie_header);
+    //}
 
-    if let Some(ref cookie_jar) = *rask_res.session.cookie_jar.borrow() {
-        let set_cookie_header = header::SetCookie::from_cookie_jar(cookie_jar);
-        rask_res.headers.set(set_cookie_header);
-    }
+    //rask_res.headers.set(header::Server(SERVER_NAME.into()));
+    //rask_res.headers.set(header::ContentLength(bytes_len as u64));
 
-    rask_res.headers.set(header::Server(SERVER_NAME.into()));
-    rask_res.headers.set(header::ContentLength(bytes_len as u64));
+    //*hyper_res.status_mut() = rask_res.status;
+    //*hyper_res.headers_mut() = rask_res.headers;
 
-    *hyper_res.status_mut() = rask_res.status;
-    *hyper_res.headers_mut() = rask_res.headers;
+    //let mut result = hyper_res.start().unwrap();
+    //if bytes_len > 0 {
+        //result.write_all(bytes).unwrap();
+    //}
 
-    let mut result = hyper_res.start().unwrap();
-    if bytes_len > 0 {
-        result.write_all(bytes).unwrap();
-    }
+    //result.end().unwrap();
+//}
 
-    result.end().unwrap();
+fn default_404_handler(_: &Request, res: Response) {
+    let mut res = res;
+    res.status(StatusCode::NotFound);
+    let _ = res.write_body("404 Not Found");
 }
 
-fn default_404_handler(_: &Request, res: &mut Response) {
-    res.body = "404 Not Found".into();
-    res.status = StatusCode::NotFound;
-}
-
-fn default_500_handler(_: &Request, res: &mut Response) {
-    res.body = "500 Internal server error".into();
-    res.status = StatusCode::InternalServerError;
+fn default_500_handler(_: &Request, res: Response) {
+    let mut res = res;
+    res.status(StatusCode::InternalServerError);
+    let _ = res.write_body("500 Internal server error");
 }
 
 //fn trailing_slash<'a>(i: &'a str) -> Cow<'a, str> {
