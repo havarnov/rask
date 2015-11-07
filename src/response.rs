@@ -33,7 +33,7 @@ impl<'a> Response<'a, Fresh> {
 
         let bytes = body.as_bytes();
         mut_self.set_header(header::ContentLength(bytes.len() as u64));
-        mut_self.inner.send(&body.as_bytes())
+        mut_self.inner.send(&bytes)
     }
 }
 
