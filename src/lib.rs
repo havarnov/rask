@@ -302,32 +302,6 @@ impl HttpHandler for Rask {
     }
 }
 
-//fn write_response(hyper_res: HttpResponse<Fresh>, rask_res: Response) {
-    //let mut rask_res = rask_res;
-    //let mut hyper_res = hyper_res;
-
-    //let bytes = rask_res.body.as_bytes();
-    //let bytes_len = bytes.len();
-
-    //if let Some(ref cookie_jar) = *rask_res.session.cookie_jar.borrow() {
-        //let set_cookie_header = header::SetCookie::from_cookie_jar(cookie_jar);
-        //rask_res.headers.set(set_cookie_header);
-    //}
-
-    //rask_res.headers.set(header::Server(SERVER_NAME.into()));
-    //rask_res.headers.set(header::ContentLength(bytes_len as u64));
-
-    //*hyper_res.status_mut() = rask_res.status;
-    //*hyper_res.headers_mut() = rask_res.headers;
-
-    //let mut result = hyper_res.start().unwrap();
-    //if bytes_len > 0 {
-        //result.write_all(bytes).unwrap();
-    //}
-
-    //result.end().unwrap();
-//}
-
 fn default_404_handler(_: &Request, res: Response) {
     let mut res = res;
     res.status(StatusCode::NotFound);
