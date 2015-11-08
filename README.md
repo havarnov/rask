@@ -14,19 +14,18 @@ use rask::request::Request;
 use rask::response::Response;
 
 fn index(_: &Request, mut res: Response) {
-    res.write_body("Hello world!");
+    res.send("Hello world!");
     // defaults to Statuscode::Ok
 }
 
 fn create(req: &Request, mut res: Response) {
     // do something with req.body
-    res.status(StatusCode::Created);
-    res.write_body("something created");
+    res.send(("something created", StatusCode::Created));
 }
 
 fn profile(req: &Request, res: &mut Response) {
     let name = req.vars.get("name").unwrap();
-    res.write_body(&format!("Hello, {0}", name));
+    res.send(format!("Hello, {0}", name));
 }
 
 fn main() {

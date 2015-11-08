@@ -7,18 +7,18 @@
 //! use rask::response::Response;
 //!
 //! fn index(req: &Request, res: Response) {
-//!     res.write_body("Hello world!");
+//!     // defaults to status 200 (Ok)
+//!     res.send("Hello world!");
 //! }
 //!
 //! fn create(req: &Request, mut res: Response) {
 //!     // do something with req.body
-//!     res.status(StatusCode::Created);
-//!     res.write_body("Hello world!");
+//!     res.send(("Hello world!", StatusCode::Created));
 //! }
 //!
 //! fn profile(req: &Request, res: Response) {
 //!     let name = req.vars.get("name").unwrap();
-//!     res.write_body(&format!("Hello, {0}", name));
+//!     res.send(format!("Hello, {0}", name));
 //! }
 //!
 //! fn main() {
