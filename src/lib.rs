@@ -269,7 +269,7 @@ enum RouteResult<'a> {
 
 impl HttpHandler for Rask {
     fn handle(&self, req: HttpRequest, res: HttpResponse<Fresh>) {
-        let mut response = Response::new(res);
+        let response = Response::new(res);
 
         let (path, query_string) = match get_path_and_query_string(&req.uri) {
             Some((path, query_string)) => (path, query_string),
@@ -290,8 +290,7 @@ impl HttpHandler for Rask {
                 (*router.handler).handle(&request, response);
             },
             RouteResult::MethodNotAllowed => {
-                response.status(StatusCode::MethodNotAllowed);
-                let _ = response.write_body("405 Method Not Allowed");
+                let _ = response.send(("405 Method Not Allowed", StatusCode::MethodNotAllowed));
             }
             RouteResult::NotFound => {
                 let req = Request::new(req, None, Some(path), query_string);
@@ -301,14 +300,12 @@ impl HttpHandler for Rask {
     }
 }
 
-fn default_404_handler(_: &Request, mut res: Response) {
-    res.status(StatusCode::NotFound);
-    let _ = res.write_body("404 Not Found");
+fn default_404_handler(_: &Request, res: Response) {
+    let _ = res.send(("404 Not Found", StatusCode::NotFound));
 }
 
-fn default_500_handler(_: &Request, mut res: Response) {
-    res.status(StatusCode::InternalServerError);
-    let _ = res.write_body("500 Internal server error");
+fn default_500_handler(_: &Request, res: Response) {
+    let _ = res.send(("500 Internal server error", StatusCode::InternalServerError));
 }
 
 fn trailing_slash<'a>(i: &'a str) -> Cow<'a, str> {
