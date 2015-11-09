@@ -57,5 +57,12 @@ impl<'a> Response<'a, Fresh> {
         self.set_header(header::ContentLength(content.len() as u64));
         self.inner.send(&content)
     }
+
+    pub fn redirect(mut self, path: &str) -> IoResult<()> {
+        self.status(StatusCode::Found);
+        self.set_header(header::Location(path.to_owned()));
+        let res = try!(self.inner.start());
+        res.end()
+    }
 }
 
