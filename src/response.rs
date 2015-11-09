@@ -9,9 +9,12 @@ use hyper::header;
 use hyper::header::Header;
 use hyper::header::HeaderFormat;
 
+use cookie::CookieJar;
+
 /// The struct that holds information about the response.
 pub struct Response<'a, W: Any = Fresh> {
-    inner: HttpResponse<'a, W>
+    inner: HttpResponse<'a, W>,
+    cookie_jar: CookieJar<'static>
 }
 
 pub trait Sendable<'a> {
@@ -37,9 +40,10 @@ impl<'a> Sendable<'a> for (&'a str, StatusCode) {
 }
 
 impl<'a> Response<'a, Fresh> {
-    pub fn new(res: HttpResponse<'a, Fresh>) -> Response<'a, Fresh> {
+    pub fn new(res: HttpResponse<'a, Fresh>, cookie_jar: CookieJar<'static>) -> Response<'a, Fresh> {
         Response {
-            inner: res
+            inner: res,
+            cookie_jar: cookie_jar
         }
     }
 
@@ -51,9 +55,15 @@ impl<'a> Response<'a, Fresh> {
         self.inner.headers_mut().set(header);
     }
 
+    pub fn cookies<'b>(&'b mut self) -> &'b mut CookieJar<'static> {
+        &mut self.cookie_jar
+    }
+
     pub fn send<S: 'a + Sendable<'a>>(mut self, s: S) -> IoResult<()> {
         let (content, status) = s.decode();
         *self.inner.status_mut() = status;
+        let cookie = header::SetCookie::from_cookie_jar(&self.cookie_jar);
+        self.set_header(cookie);
         self.set_header(header::ContentLength(content.len() as u64));
         self.inner.send(&content)
     }

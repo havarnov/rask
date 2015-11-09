@@ -23,7 +23,7 @@
 //!
 //! fn main() {
 //!
-//!     let mut app = Rask::new();
+//!     let mut app = Rask::new("SUPER SECRET KEY");
 //!
 //!     app.register("/", index); // all methods
 //!     app.register_with_methods("/create", &[Method::Post], create);
@@ -49,12 +49,15 @@ use std::sync::Arc;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
+use cookie::CookieJar;
+
 use hyper::Server;
 use hyper::uri::RequestUri;
 use hyper::server::response::Response as HttpResponse;
 use hyper::server::request::Request as HttpRequest;
 use hyper::server::Handler as HttpHandler;
 use hyper::net::Fresh;
+pub use hyper::header;
 pub use hyper::status::StatusCode;
 pub use hyper::method::Method;
 
@@ -106,6 +109,7 @@ impl<F> Handler for F where F: Fn(&Request, Response), F: Sync + Send {
 pub struct Rask {
     routes: Vec<Route>,
     error_handlers: HashMap<StatusCode, Arc<Box<Handler>>>,
+    secret: String,
 }
 
 impl Rask {
@@ -116,15 +120,17 @@ impl Rask {
     /// ```rust
     /// use rask::Rask;
     ///
-    /// let app = Rask::new();
+    /// let app = Rask::new("SUPER SECRET KEY");
     /// ```
-    pub fn new() -> Rask {
+    pub fn new(secret: &str) -> Rask {
         let mut default_error_handlers: HashMap<StatusCode, Arc<Box<Handler>>> = HashMap::new();
         default_error_handlers.insert(StatusCode::NotFound, Arc::new(Box::new(default_404_handler)));
         default_error_handlers.insert(StatusCode::InternalServerError, Arc::new(Box::new(default_500_handler)));
         Rask {
             routes: Vec::new(),
-            error_handlers: default_error_handlers }
+            error_handlers: default_error_handlers,
+            secret: secret.into(),
+        }
     }
 
     /// Starts the web application. Blocks and dispatches new incoming requests.
@@ -134,7 +140,7 @@ impl Rask {
     /// ```rust,no_run
     /// use rask::Rask;
     ///
-    /// let app = Rask::new();
+    /// let app = Rask::new("SUPER SECRET KEY");
     /// app.run("127.0.0.1", 8080);
     /// ```
     ///
@@ -176,7 +182,7 @@ impl Rask {
     /// fn index(_: &Request, _: Response) {
     /// }
     ///
-    /// let mut app = Rask::new();
+    /// let mut app = Rask::new("SUPER SECRET KEY");
     /// app.register("/", index);
     /// ```
     ///
@@ -201,7 +207,7 @@ impl Rask {
     /// fn only_post_and_put(_: &Request, _: Response) {
     /// }
     ///
-    /// let mut app = Rask::new();
+    /// let mut app = Rask::new("SUPER SECRET KEY");
     /// app.register_with_methods("/", &[Post, Put], only_post_and_put);
     /// ```
     ///
@@ -233,7 +239,7 @@ impl Rask {
     /// use rask::request::Request;
     /// use rask::response::Response;
     ///
-    /// let mut app = Rask::new();
+    /// let mut app = Rask::new("SUPER SECRET KEY");
     /// app.serve_static("/static/", "static/");
     /// ```
     ///
@@ -269,7 +275,15 @@ enum RouteResult<'a> {
 
 impl HttpHandler for Rask {
     fn handle(&self, req: HttpRequest, res: HttpResponse<Fresh>) {
-        let response = Response::new(res);
+        let cookie_jar = {
+            let key = &self.secret.as_bytes();
+            match req.headers.get::<header::Cookie>() {
+                Some(cookie) => cookie.to_cookie_jar(key),
+                None => CookieJar::new(key)
+            }
+        };
+
+        let response = Response::new(res, cookie_jar);
 
         let (path, query_string) = match get_path_and_query_string(&req.uri) {
             Some((path, query_string)) => (path, query_string),
