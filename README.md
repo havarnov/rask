@@ -1,5 +1,7 @@
 # Rask
 
+[![Travis Build Status](https://travis-ci.org/havarnov/rask.svg?branch=master)](https://travis-ci.org/havarnov/rask)
+
 A micro web framework for Rust. Based on [hyper](https://github.com/hyperium/hyper).
 
 This project is very much a work in progress.
