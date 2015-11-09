@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use regex::Captures;
 
 use hyper::server::request::Request as HttpRequest;
+use hyper::method::Method;
 
 use multimap::MultiMap;
 
@@ -32,6 +33,10 @@ impl<'a, 'b> Request<'a, 'b> {
                      .map(|(k,v)| (k.to_string(), v.unwrap().to_string())).collect())
                 .unwrap_or(HashMap::new()),
         }
+    }
+
+    pub fn method<'c>(&'c self) -> &'c Method {
+        &self.inner.method
     }
 }
 
