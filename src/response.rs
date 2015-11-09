@@ -39,6 +39,12 @@ impl<'a> Sendable<'a> for (&'a str, StatusCode) {
     }
 }
 
+impl<'a> Sendable<'a> for StatusCode {
+    fn decode(self) -> (Cow<'a, [u8]>, StatusCode) {
+        (Cow::Borrowed("".as_bytes()), self)
+    }
+}
+
 impl<'a> Response<'a, Fresh> {
     pub fn new(res: HttpResponse<'a, Fresh>, cookie_jar: CookieJar<'static>) -> Response<'a, Fresh> {
         Response {
@@ -60,19 +66,20 @@ impl<'a> Response<'a, Fresh> {
     }
 
     pub fn send<S: 'a + Sendable<'a>>(mut self, s: S) -> IoResult<()> {
-        let (content, status) = s.decode();
-        *self.inner.status_mut() = status;
         let cookie = header::SetCookie::from_cookie_jar(&self.cookie_jar);
         self.set_header(cookie);
-        self.set_header(header::ContentLength(content.len() as u64));
+
+        let (content, status) = s.decode();
+        *self.inner.status_mut() = status;
+        if content.len() > 0 {
+            self.set_header(header::ContentLength(content.len() as u64));
+        }
         self.inner.send(&content)
     }
 
     pub fn redirect(mut self, path: &str) -> IoResult<()> {
-        self.status(StatusCode::Found);
         self.set_header(header::Location(path.to_owned()));
-        let res = try!(self.inner.start());
-        res.end()
+        self.send(StatusCode::Found)
     }
 }
 
