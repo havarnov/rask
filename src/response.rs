@@ -70,7 +70,7 @@ impl<'a> Response<'a, Fresh> {
         self.set_header(cookie);
 
         let (content, status) = s.decode();
-        *self.inner.status_mut() = status;
+        self.status(status);
         if content.len() > 0 {
             self.set_header(header::ContentLength(content.len() as u64));
         }
