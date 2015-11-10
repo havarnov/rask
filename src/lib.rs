@@ -46,7 +46,6 @@ extern crate cookie;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::str::FromStr;
 use std::sync::Arc;
-use std::borrow::Cow;
 use std::collections::HashMap;
 
 use cookie::CookieJar;
@@ -66,12 +65,10 @@ use url::UrlParser;
 use routing::Route;
 use request::Request;
 use response::Response;
-use servestatic::ServeStatic;
 
 pub mod routing;
 pub mod response;
 pub mod request;
-mod servestatic;
 
 /// Trait that all handlers must implement.
 ///
@@ -230,26 +227,6 @@ impl Rask {
         self.error_handlers.insert(status_code, Arc::new(Box::new(handler)));
     }
 
-    /// Setup the app to serve a directory as static resources. Typically used for
-    /// html, js and css.
-    ///
-    /// ```rust
-    ///
-    /// use rask::Rask;
-    /// use rask::request::Request;
-    /// use rask::response::Response;
-    ///
-    /// let mut app = Rask::new("SUPER SECRET KEY");
-    /// app.serve_static("/static/", "static/");
-    /// ```
-    ///
-    pub fn serve_static(&mut self, path: &str, dir: &str) {
-        let path = trailing_slash(path);
-        let serve_static_handler = ServeStatic::new(dir, &path, self.error_handlers[&StatusCode::NotFound].clone());
-        let route = Route::with_methods(&format!("{}**", path), serve_static_handler, &[Method::Get]);
-        self.routes.push(route);
-    }
-
     fn find_route(&self, path: &str, method: &Method) -> RouteResult {
         for route in self.routes.iter() {
             if route.re.is_match(path) {
@@ -320,15 +297,6 @@ fn default_404_handler(_: &Request, res: Response) {
 
 fn default_500_handler(_: &Request, res: Response) {
     let _ = res.send(("500 Internal server error", StatusCode::InternalServerError));
-}
-
-fn trailing_slash<'a>(i: &'a str) -> Cow<'a, str> {
-    if !i.ends_with("/") {
-        Cow::Owned(format!("{}/", i))
-    }
-    else {
-        Cow::Borrowed(i)
-    }
 }
 
 fn get_path_and_query_string(uri: &RequestUri) -> Option<(String, Option<String>)> {
